@@ -444,10 +444,11 @@
     let paymentMode = 'cash';
     let currentActiveBill = null;
 
-    // Customer & Billing State
-    let billCustomerName = 'Kali Ram Sahu';
-    let billCustomerVillage = 'Deori (देवरी)';
-    let billCustomerPhone = '70891-01502';
+    // Customer & Billing State (Name & Mobile blank by default, Village default 'देवरी', Father's Name optional)
+    let billCustomerName = '';
+    let billCustomerFatherName = '';
+    let billCustomerVillage = 'देवरी';
+    let billCustomerPhone = '';
     let billDiscount = 0;
     let billPaidAmount = '';
     let billingSearchTerm = '';
@@ -557,7 +558,8 @@
         if (!isNaN(parsed) && parsed > 0) {
           nextBillNumber = parsed;
           localStorage.setItem('jk_next_bill_no', nextBillNumber);
-          renderScreen();
+          const nextBillEl = document.getElementById('display-next-bill-no');
+          if (nextBillEl) nextBillEl.textContent = '#' + nextBillNumber;
         } else {
           alert("कृपया मान्य संख्या दर्ज करें!");
         }
@@ -592,6 +594,7 @@
         <div class="grid grid-cols-2 gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-xs">
           <button 
             type="button" 
+            id="btn-mode-cash"
             onclick="setPaymentMode('cash')"
             class="py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${paymentMode === 'cash' ? 'bg-agri-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}"
           >
@@ -600,6 +603,7 @@
           </button>
           <button 
             type="button" 
+            id="btn-mode-credit"
             onclick="setPaymentMode('credit')"
             class="py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${paymentMode === 'credit' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}"
           >
@@ -614,7 +618,7 @@
             <span class="text-[11px] font-extrabold text-slate-700 flex items-center gap-1">
               <span>🔍</span> बिल में दवा खोजकर सीधे जोड़ें:
             </span>
-            <span class="text-[10px] font-bold ${paymentMode === 'cash' ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-rose-700 bg-rose-50 border border-rose-200'} px-2 py-0.5 rounded-md">
+            <span id="rate-mode-badge" class="text-[10px] font-bold ${paymentMode === 'cash' ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-rose-700 bg-rose-50 border border-rose-200'} px-2 py-0.5 rounded-md">
               ${paymentMode === 'cash' ? '🟢 नकद दर लागू' : '🔴 उधार दर लागू'}
             </span>
           </div>
@@ -651,7 +655,7 @@
             <div class="flex items-center gap-1.5">
               <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ग्राहक विवरण:</span>
               <span class="text-[11px] font-mono font-black text-slate-900 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md shadow-2xs">
-                अगला बिल क्र.: #${nextBillNumber}
+                अगला बिल क्र.: <span id="display-next-bill-no">#${nextBillNumber}</span>
               </span>
               <button 
                 type="button" 
@@ -664,144 +668,88 @@
             </div>
             <span class="text-[10px] text-slate-500 font-bold">दिनांक: ${new Date().toLocaleDateString('hi-IN')}</span>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
             <input 
               type="text" 
               placeholder="किसान का नाम *"
               value="${billCustomerName}"
               oninput="billCustomerName = this.value"
-              class="p-2 border border-slate-200 rounded-xl text-xs font-bold"
+              class="p-2 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-agri-600 outline-none"
             />
             <input 
               type="text" 
-              placeholder="गाँव / पता (उदा. देवरी)"
+              placeholder="पिता का नाम (वैकल्पिक)"
+              value="${billCustomerFatherName}"
+              oninput="billCustomerFatherName = this.value"
+              class="p-2 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-agri-600 outline-none"
+            />
+            <input 
+              type="text" 
+              placeholder="गाँव / पता"
               value="${billCustomerVillage}"
               oninput="billCustomerVillage = this.value"
-              class="p-2 border border-slate-200 rounded-xl text-xs font-semibold"
+              class="p-2 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-agri-600 outline-none"
             />
             <input 
               type="tel" 
-              placeholder="मोबाइल नंबर"
+              placeholder="मोबाइल नंबर (वैकल्पिक)"
               value="${billCustomerPhone}"
               oninput="billCustomerPhone = this.value"
-              class="p-2 border border-slate-200 rounded-xl text-xs font-semibold"
+              class="p-2 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-agri-600 outline-none"
             />
           </div>
         </div>
 
-        <!-- Cart Items List -->
-        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-          <div class="flex justify-between items-center text-xs">
-            <span class="font-extrabold text-slate-800 flex items-center gap-1.5">
-              <span>🛒</span>
-              <span>बिल में दवाइयाँ (${cart.length} आइटम)</span>
-            </span>
-            ${cart.length > 0 ? `<button onclick="cart=[]; renderScreen();" class="text-rose-600 font-bold text-[11px] hover:underline">सब हटाएं</button>` : ''}
-          </div>
-
-          ${cart.length === 0 ? `
-            <div class="text-center py-8 text-slate-400 text-xs font-semibold bg-slate-50 rounded-xl border border-dashed border-slate-200">
-              <p>बिल में अभी कोई दवा नहीं है।</p>
-              <p class="text-[10px] text-slate-500 mt-0.5">ऊपर सर्च बार में दवा का नाम लिखकर तुरंत जोड़ें।</p>
-            </div>
-          ` : `
-            <div class="divide-y divide-slate-100 text-xs">
-              ${cart.map((item, idx) => `
-                <div class="py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
-                  <div class="flex-1 min-w-[140px]">
-                    <h4 class="font-bold text-slate-900 text-xs leading-tight">${item.brandName}</h4>
-                    <span class="text-[10px] text-slate-400">भरती: ${item.pack} | बैच: ${item.batch || 'SMT10'} (अव.: ${item.expiry || '08/28'})</span>
-                  </div>
-
-                  <!-- Quantity with Quick [-] and [+] Buttons -->
-                  <div class="flex items-center">
-                    <span class="text-[9px] text-slate-400 mr-1 hidden sm:inline">मात्रा:</span>
-                    <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
-                      <button 
-                        type="button" 
-                        onclick="updateCartItemQty(${idx}, ${item.qty - 1})"
-                        class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition"
-                      >-</button>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        value="${item.qty}"
-                        onchange="updateCartItemQty(${idx}, Number(this.value)||1)"
-                        class="w-10 p-1 text-center font-extrabold border-x border-slate-200 text-xs bg-white focus:outline-none"
-                      />
-                      <button 
-                        type="button" 
-                        onclick="updateCartItemQty(${idx}, ${item.qty + 1})"
-                        class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition"
-                      >+</button>
-                    </div>
-                  </div>
-
-                  <!-- Editable Rate Field -->
-                  <div class="w-16">
-                    <span class="text-[9px] text-slate-400 block text-center">दर (₹)</span>
-                    <input 
-                      type="number" 
-                      value="${item.sellingPrice}"
-                      onchange="updateCartItemPrice(${idx}, Number(this.value)||0)"
-                      class="w-full p-1 text-center font-bold border border-slate-200 rounded-lg text-xs bg-amber-50 focus:bg-white text-slate-800"
-                    />
-                  </div>
-
-                  <!-- Line Total -->
-                  <div class="w-16 text-right font-extrabold text-slate-900 text-xs font-mono">
-                    ₹${(item.qty * item.sellingPrice).toFixed(0)}
-                  </div>
-
-                  <!-- Remove Item -->
-                  <button onclick="cart.splice(${idx}, 1); renderScreen();" class="text-slate-400 hover:text-rose-600 p-1 font-bold text-sm">✕</button>
-                </div>
-              `).join('')}
-            </div>
-          `}
+        <!-- Cart Items List Container (Updated independently) -->
+        <div id="cart-container-box" class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          ${renderCartItemsHtml()}
         </div>
 
         <!-- Billing Summary & Live Recalculations -->
         <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-1.5 text-xs">
           <div class="flex justify-between text-slate-600 font-semibold">
             <span>उप-योग (Subtotal):</span>
-            <span class="font-bold text-slate-900 font-mono">₹${subtotal}</span>
+            <span id="summary-subtotal" class="font-bold text-slate-900 font-mono">₹${subtotal}</span>
           </div>
 
           <div class="flex justify-between items-center text-slate-600">
             <span>छूट (Discount ₹):</span>
             <input 
               type="number" 
-              value="${billDiscount}" 
-              oninput="billDiscount = Number(this.value)||0; renderBillingScreen(document.getElementById('main-content'));"
+              id="bill-discount-input"
+              value="${billDiscount || ''}" 
+              placeholder="0"
+              oninput="onDiscountInput(this.value)"
               class="w-20 p-1 text-right font-bold border border-slate-200 rounded-lg text-xs"
             />
           </div>
 
           <div class="flex justify-between text-sm font-black text-slate-900 pt-1 border-t border-slate-100">
             <span>कुल रकम (Grand Total):</span>
-            <span class="text-agri-700 font-mono text-base">₹${grandTotal}</span>
+            <span id="summary-grand-total" class="text-agri-700 font-mono text-base">₹${grandTotal}</span>
           </div>
 
           <div class="flex justify-between items-center pt-1">
             <span class="font-bold text-slate-700">जमा राशि (Paid Amount):</span>
             <input 
               type="number" 
+              id="bill-paid-input"
               placeholder="${paymentMode === 'cash' ? grandTotal : '0'}" 
               value="${billPaidAmount}" 
-              oninput="billPaidAmount = this.value; renderBillingScreen(document.getElementById('main-content'));"
+              oninput="onPaidAmountInput(this.value)"
               class="w-28 p-1.5 text-right font-black border border-slate-200 rounded-lg text-xs bg-emerald-50 text-emerald-900 font-mono"
             />
           </div>
 
           <div class="flex justify-between font-black text-xs text-rose-600 pt-1.5 border-t border-slate-100">
             <span>शेष उधार रकम (Balance Due):</span>
-            <span class="font-mono text-sm">₹${balanceDue}</span>
+            <span id="summary-balance-due" class="font-mono text-sm">₹${balanceDue}</span>
           </div>
         </div>
 
         <!-- Finalize Bill Button -->
         <button 
+          id="btn-finalize-bill"
           onclick="finalizeBill()"
           ${cart.length === 0 ? 'disabled' : ''}
           class="w-full bg-agri-700 hover:bg-agri-800 disabled:opacity-40 text-white font-black py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
@@ -812,6 +760,178 @@
 
       if (billingSearchTerm) {
         updateBillingSearchDropdown();
+      }
+    }
+
+    // Helper: Render Cart Items HTML without wiping the whole screen
+    function renderCartItemsHtml() {
+      return `
+        <div class="flex justify-between items-center text-xs">
+          <span class="font-extrabold text-slate-800 flex items-center gap-1.5">
+            <span>🛒</span>
+            <span>बिल में दवाइयाँ (${cart.length} आइटम)</span>
+          </span>
+          ${cart.length > 0 ? `<button type="button" onclick="clearCart()" class="text-rose-600 font-bold text-[11px] hover:underline">सब हटाएं</button>` : ''}
+        </div>
+
+        ${cart.length === 0 ? `
+          <div class="text-center py-8 text-slate-400 text-xs font-semibold bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            <p>बिल में अभी कोई दवा नहीं है।</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">ऊपर सर्च बार में दवा का नाम लिखकर तुरंत जोड़ें।</p>
+          </div>
+        ` : `
+          <div class="divide-y divide-slate-100 text-xs">
+            ${cart.map((item, idx) => `
+              <div class="py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
+                <div class="flex-1 min-w-[140px]">
+                  <h4 class="font-bold text-slate-900 text-xs leading-tight">${item.brandName}</h4>
+                  <span class="text-[10px] text-slate-400">भरती: ${item.pack} | बैच: ${item.batch || 'SMT10'} (अव.: ${item.expiry || '08/28'})</span>
+                </div>
+
+                <!-- Quantity with Quick [-] and [+] Buttons -->
+                <div class="flex items-center">
+                  <span class="text-[9px] text-slate-400 mr-1 hidden sm:inline">मात्रा:</span>
+                  <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
+                    <button 
+                      type="button" 
+                      onclick="updateCartItemQtyInPlace(${idx}, -1)"
+                      class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition"
+                    >-</button>
+                    <input 
+                      type="number" 
+                      id="cart-qty-input-${idx}"
+                      min="1" 
+                      value="${item.qty}"
+                      oninput="onCartItemQtyInput(${idx}, this.value)"
+                      class="w-10 p-1 text-center font-extrabold border-x border-slate-200 text-xs bg-white focus:outline-none"
+                    />
+                    <button 
+                      type="button" 
+                      onclick="updateCartItemQtyInPlace(${idx}, 1)"
+                      class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition"
+                    >+</button>
+                  </div>
+                </div>
+
+                <!-- Editable Rate Field -->
+                <div class="w-16">
+                  <span class="text-[9px] text-slate-400 block text-center">दर (₹)</span>
+                  <input 
+                    type="number" 
+                    id="cart-price-input-${idx}"
+                    value="${item.sellingPrice}"
+                    oninput="onCartItemPriceInput(${idx}, this.value)"
+                    class="w-full p-1 text-center font-bold border border-slate-200 rounded-lg text-xs bg-amber-50 focus:bg-white text-slate-800"
+                  />
+                </div>
+
+                <!-- Line Total -->
+                <div id="item-line-total-${idx}" class="w-16 text-right font-extrabold text-slate-900 text-xs font-mono">
+                  ₹${(item.qty * item.sellingPrice).toFixed(0)}
+                </div>
+
+                <!-- Remove Item -->
+                <button type="button" onclick="removeCartItem(${idx})" class="text-slate-400 hover:text-rose-600 p-1 font-bold text-sm">✕</button>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      `;
+    }
+
+    function refreshCartContainerOnly() {
+      const box = document.getElementById('cart-container-box');
+      if (box) box.innerHTML = renderCartItemsHtml();
+      recalculateBillingSummary();
+      updateCartBadge();
+    }
+
+    function clearCart() {
+      cart = [];
+      refreshCartContainerOnly();
+    }
+
+    function removeCartItem(idx) {
+      cart.splice(idx, 1);
+      refreshCartContainerOnly();
+    }
+
+    function updateCartItemQtyInPlace(index, delta) {
+      if (!cart[index]) return;
+      const newQty = cart[index].qty + delta;
+      if (newQty <= 0) {
+        removeCartItem(index);
+      } else {
+        cart[index].qty = newQty;
+        const input = document.getElementById(`cart-qty-input-${index}`);
+        if (input) input.value = newQty;
+        const lineTotalEl = document.getElementById(`item-line-total-${index}`);
+        if (lineTotalEl) {
+          lineTotalEl.textContent = '₹' + (cart[index].qty * cart[index].sellingPrice).toFixed(0);
+        }
+        recalculateBillingSummary();
+      }
+    }
+
+    // High-Performance In-Place Live Summary Recalculator (Never resets keyboard or focus)
+    function recalculateBillingSummary() {
+      const subtotal = cart.reduce((acc, cur) => acc + (cur.qty * cur.sellingPrice), 0);
+      const grandTotal = Math.max(0, subtotal - Number(billDiscount || 0));
+      
+      let effectivePaid;
+      if (billPaidAmount === '') {
+        effectivePaid = paymentMode === 'cash' ? grandTotal : 0;
+      } else {
+        effectivePaid = Number(billPaidAmount) || 0;
+      }
+      const balanceDue = Math.max(0, grandTotal - effectivePaid);
+
+      const subtotalEl = document.getElementById('summary-subtotal');
+      const grandTotalEl = document.getElementById('summary-grand-total');
+      const balanceDueEl = document.getElementById('summary-balance-due');
+      const paidInput = document.getElementById('bill-paid-input');
+      const finalizeBtn = document.getElementById('btn-finalize-bill');
+
+      if (subtotalEl) subtotalEl.textContent = '₹' + subtotal;
+      if (grandTotalEl) grandTotalEl.textContent = '₹' + grandTotal;
+      if (balanceDueEl) balanceDueEl.textContent = '₹' + balanceDue;
+      if (paidInput && billPaidAmount === '') {
+        paidInput.placeholder = paymentMode === 'cash' ? grandTotal : '0';
+      }
+      if (finalizeBtn) {
+        finalizeBtn.disabled = cart.length === 0;
+      }
+    }
+
+    function onDiscountInput(val) {
+      billDiscount = Number(val) || 0;
+      recalculateBillingSummary();
+    }
+
+    function onPaidAmountInput(val) {
+      billPaidAmount = val;
+      recalculateBillingSummary();
+    }
+
+    function onCartItemPriceInput(idx, val) {
+      if (cart[idx]) {
+        cart[idx].sellingPrice = Math.max(0, Number(val) || 0);
+        const lineTotalEl = document.getElementById(`item-line-total-${idx}`);
+        if (lineTotalEl) {
+          lineTotalEl.textContent = '₹' + (cart[idx].qty * cart[idx].sellingPrice).toFixed(0);
+        }
+        recalculateBillingSummary();
+      }
+    }
+
+    function onCartItemQtyInput(idx, val) {
+      if (cart[idx]) {
+        cart[idx].qty = Math.max(1, Number(val) || 1);
+        const lineTotalEl = document.getElementById(`item-line-total-${idx}`);
+        if (lineTotalEl) {
+          lineTotalEl.textContent = '₹' + (cart[idx].qty * cart[idx].sellingPrice).toFixed(0);
+        }
+        recalculateBillingSummary();
       }
     }
 
@@ -922,29 +1042,46 @@
       }
 
       billingSearchTerm = '';
-      renderScreen();
-    }
+      const input = document.getElementById('billing-search-input');
+      if (input) input.value = '';
+      const dropdown = document.getElementById('billing-search-dropdown');
+      if (dropdown) dropdown.classList.add('hidden');
 
-    function updateCartItemQty(index, newQty) {
-      if (newQty <= 0) {
-        cart.splice(index, 1);
-      } else {
-        cart[index].qty = newQty;
-      }
-      renderScreen();
-    }
-
-    function updateCartItemPrice(index, newPrice) {
-      cart[index].sellingPrice = Math.max(0, newPrice);
-      renderScreen();
+      refreshCartContainerOnly();
     }
 
     function setPaymentMode(mode) {
       paymentMode = mode;
-      cart.forEach(item => {
+      cart.forEach((item, idx) => {
         item.sellingPrice = mode === 'cash' ? item.cashPrice : item.creditPrice;
+        const priceInput = document.getElementById(`cart-price-input-${idx}`);
+        if (priceInput) priceInput.value = item.sellingPrice;
+        const lineTotalEl = document.getElementById(`item-line-total-${idx}`);
+        if (lineTotalEl) {
+          lineTotalEl.textContent = '₹' + (item.qty * item.sellingPrice).toFixed(0);
+        }
       });
-      renderScreen();
+
+      const cashBtn = document.getElementById('btn-mode-cash');
+      const creditBtn = document.getElementById('btn-mode-credit');
+      const badge = document.getElementById('rate-mode-badge');
+
+      if (cashBtn && creditBtn) {
+        if (mode === 'cash') {
+          cashBtn.className = "py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all bg-agri-600 text-white shadow-md";
+          creditBtn.className = "py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all text-slate-600 hover:bg-slate-100";
+        } else {
+          creditBtn.className = "py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all bg-rose-600 text-white shadow-md";
+          cashBtn.className = "py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all text-slate-600 hover:bg-slate-100";
+        }
+      }
+
+      if (badge) {
+        badge.className = `text-[10px] font-bold ${mode === 'cash' ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-rose-700 bg-rose-50 border border-rose-200'} px-2 py-0.5 rounded-md`;
+        badge.textContent = mode === 'cash' ? '🟢 नकद दर लागू' : '🔴 उधार दर लागू';
+      }
+
+      recalculateBillingSummary();
     }
 
     function numberToHindiWords(num) {
@@ -967,16 +1104,16 @@
       const effectivePaid = billPaidAmount === '' ? (paymentMode === 'cash' ? grandTotal : 0) : Number(billPaidAmount) || 0;
       const balanceDue = Math.max(0, grandTotal - effectivePaid);
 
-      // Using persistent sequential nextBillNumber
       const assignedBillNumber = String(nextBillNumber);
 
       const bill = {
         id: 'BILL-' + Date.now(),
         billNumber: assignedBillNumber,
         date: new Date().toISOString().split('T')[0],
-        customerName: billCustomerName,
+        customerName: billCustomerName.trim(),
+        customerFatherName: billCustomerFatherName.trim(),
         customerVillage: billCustomerVillage || 'देवरी',
-        customerPhone: billCustomerPhone || '70891-01502',
+        customerPhone: billCustomerPhone.trim(),
         paymentMode: paymentMode,
         items: [...cart],
         subtotal: subtotal,
@@ -991,196 +1128,264 @@
       billsHistory.unshift(bill);
       localStorage.setItem('jk_bills', JSON.stringify(billsHistory));
 
-      // Auto-Increment & Save for Next Bill
       nextBillNumber += 1;
       localStorage.setItem('jk_next_bill_no', nextBillNumber);
 
       currentActiveBill = bill;
       openInvoiceModal(bill);
-      renderScreen();
+      
+      const nextBillEl = document.getElementById('display-next-bill-no');
+      if (nextBillEl) nextBillEl.textContent = '#' + nextBillNumber;
     }
 
+    // Modal & Print & WhatsApp Functions
     function openInvoiceModal(bill) {
       currentActiveBill = bill;
       const modal = document.getElementById('invoice-modal');
-      const area = document.getElementById('print-invoice-area');
-      modal.classList.remove('hidden');
+      const printArea = document.getElementById('print-invoice-area');
+      if (!modal || !printArea) return;
 
-      area.innerHTML = `
-        <div style="border: 1.5px solid #1e293b; padding: 12px; border-radius: 4px; font-family: 'Mukta', sans-serif;">
-          
-          <!-- Top Legal Headers -->
-          <div style="display: flex; justify-content: space-between; font-size: 10px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; font-weight: 600; color: #334155;">
-            <div>
-              <span>GSTIN: <b>22FTUPS0621B1ZU</b></span> | 
-              <span>Pes.L.No.: <b>RYP/1315</b></span> | 
-              <span>Fer.L.No.: <b>DMT/1101</b></span>
-            </div>
-            <div>धमतरी न्यायालय के अंतर्गत</div>
+      const farmerDisplayName = bill.customerFatherName 
+        ? `${bill.customerName} आत्मज श्री ${bill.customerFatherName}` 
+        : bill.customerName;
+
+      printArea.innerHTML = `
+        <div class="border-2 border-slate-900 p-3 bg-white text-slate-900 text-xs font-sans">
+          <!-- Top Meta -->
+          <div class="flex justify-between text-[10px] font-bold border-b border-slate-300 pb-1">
+            <span>GSTIN: 22FTUPS0621B1ZU | Pes.L: RYP/1315 | Fer.L: DMT/1101</span>
+            <span>धमतरी न्यायालय</span>
           </div>
 
           <!-- Shop Title -->
-          <div style="text-align: center; margin: 4px 0 6px 0;">
-            <div style="display: inline-block; border: 1px solid #0f172a; padding: 1px 10px; font-size: 11px; font-weight: 800; border-radius: 3px;">
-              ${bill.paymentMode === 'cash' ? '॥ केश मेमो / CASH MEMO ॥' : '॥ उधार मेमो / CREDIT MEMO ॥'}
+          <div class="text-center my-2">
+            <div class="inline-block border border-slate-900 px-2.5 py-0.5 text-[10.5px] font-black uppercase tracking-wider">
+              ${bill.paymentMode === 'cash' ? '॥ नकद केश मेमो ॥' : '॥ उधार पर्ची (CREDIT MEMO) ॥'}
             </div>
-            <h2 style="font-size: 22px; font-weight: 900; color: #0f172a; margin: 2px 0;">जीवन कृषि केन्द्र</h2>
-            <div style="font-size: 11px; font-weight: 700; color: #475569;">रासायनिक खाद, कृषि दवाईयों एवं सीमेंट विक्रेता</div>
-            <div style="font-size: 10.5px; color: #334155;">ग्राम - देवरी, जिला - धमतरी (छ.ग.) | मो: <b>70891-01502</b></div>
+            <h2 class="text-xl font-black leading-tight mt-1 text-slate-900">जीवन कृषि केन्द्र</h2>
+            <p class="text-[11px] font-semibold text-slate-700">रासायनिक खाद, उन्नत बीज, कृषि दवाईयां एवं सीमेंट विक्रेता</p>
+            <p class="text-[10px] text-slate-600">ग्राम - देवरी, जिला - धमतरी (छ.ग.) | M: 70891-01502</p>
           </div>
 
-          <!-- Farmer Details Grid -->
-          <div style="display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #94a3b8; padding: 6px 8px; margin: 6px 0; border-radius: 3px; font-size: 11.5px;">
+          <!-- Farmer & Bill Meta -->
+          <div class="border border-slate-400 p-2 bg-slate-50 text-[11px] mb-2 flex justify-between font-bold leading-relaxed">
             <div>
-              <div>क्र. (Bill No.): <b>#${bill.billNumber}</b></div>
-              <div>नाम श्री: <b>${bill.customerName}</b></div>
-              <div>(गांव: <b>${bill.customerVillage}</b>)</div>
+              <div>क्र. <span class="font-mono text-xs">#${bill.billNumber}</span> | नाम श्री: <span class="text-xs text-slate-900">${farmerDisplayName}</span></div>
+              <div>गाँव / पता: ${bill.customerVillage || 'देवरी'} ${bill.customerPhone ? `| मो.: ${bill.customerPhone}` : ''}</div>
             </div>
-            <div style="text-align: right;">
-              <div>दि.: <b>${bill.date}</b></div>
-              <div>भुगतान: <b>${bill.paymentMode === 'cash' ? 'नकद (CASH)' : 'उधार (CREDIT)'}</b></div>
-              <div>मो.: <b>${bill.customerPhone}</b></div>
+            <div class="text-right">
+              <div>दिनांक: ${bill.date}</div>
+              <div>प्रकार: <span class="${bill.paymentMode === 'cash' ? 'text-emerald-700' : 'text-rose-700'}">${bill.paymentMode === 'cash' ? 'नकद (Cash)' : 'उधार (Credit)'}</span></div>
             </div>
           </div>
 
           <!-- Items Table -->
-          <table style="width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 11px;">
+          <table class="w-full border-collapse border border-slate-800 text-[10.5px]">
             <thead>
-              <tr style="background: #f1f5f9;">
-                <th style="border: 1px solid #64748b; padding: 4px; text-align: center; width: 6%;">क्र.</th>
-                <th style="border: 1px solid #64748b; padding: 4px; text-align: left; width: 36%;">विवरण (Description)</th>
-                <th style="border: 1px solid #64748b; padding: 4px; text-align: center; width: 14%;">बेच नं.</th>
-                <th style="border: 1px solid #64748b; padding: 4px; text-align: center; width: 12%;">अव. तिथि</th>
-                <th style="border: 1px solid #64748b; padding: 4px; text-align: center; width: 10%;">भरती</th>
-                <th style="border: 1px solid #64748b; padding: 4px; text-align: center; width: 8%;">मात्रा</th>
-                <th style="border: 1px solid #64748b; padding: 4px; text-align: right; width: 12%;">दर (₹)</th>
-                <th style="border: 1px solid #64748b; padding: 4px; text-align: right; width: 14%;">रकम (₹)</th>
+              <tr class="bg-slate-100">
+                <th class="border border-slate-800 p-1 text-center w-8">क्र.</th>
+                <th class="border border-slate-800 p-1 text-left">विवरण (Description)</th>
+                <th class="border border-slate-800 p-1 text-center">बैच नं.</th>
+                <th class="border border-slate-800 p-1 text-center">अव. तिथि</th>
+                <th class="border border-slate-800 p-1 text-center">भरती</th>
+                <th class="border border-slate-800 p-1 text-center w-10">मात्रा</th>
+                <th class="border border-slate-800 p-1 text-right w-14">दर (₹)</th>
+                <th class="border border-slate-800 p-1 text-right w-16">रकम (₹)</th>
               </tr>
             </thead>
             <tbody>
               ${bill.items.map((it, i) => `
                 <tr>
-                  <td style="border: 1px solid #64748b; padding: 4px; text-align: center; font-weight: bold;">${i + 1}</td>
-                  <td style="border: 1px solid #64748b; padding: 4px;">
-                    <div style="font-weight: 800; color: #0f172a;">${it.brandName}</div>
-                    <div style="font-size: 9.5px; color: #64748b;">${it.technical || ''}</div>
+                  <td class="border border-slate-800 p-1 text-center font-bold">${i + 1}</td>
+                  <td class="border border-slate-800 p-1">
+                    <div class="font-bold text-slate-900">${it.brandName}</div>
+                    <div class="text-[9.5px] text-slate-600">${it.technical || ''}</div>
                   </td>
-                  <td style="border: 1px solid #64748b; padding: 4px; text-align: center; font-weight: bold;">${it.batch || 'SMT10'}</td>
-                  <td style="border: 1px solid #64748b; padding: 4px; text-align: center;">${it.expiry || '08/28'}</td>
-                  <td style="border: 1px solid #64748b; padding: 4px; text-align: center;">${it.pack}</td>
-                  <td style="border: 1px solid #64748b; padding: 4px; text-align: center; font-weight: bold;">${it.qty}</td>
-                  <td style="border: 1px solid #64748b; padding: 4px; text-align: right;">${Number(it.sellingPrice).toFixed(2)}</td>
-                  <td style="border: 1px solid #64748b; padding: 4px; text-align: right; font-weight: bold;">${(it.qty * it.sellingPrice).toFixed(2)}</td>
+                  <td class="border border-slate-800 p-1 text-center font-mono font-semibold">${it.batch || '-'}</td>
+                  <td class="border border-slate-800 p-1 text-center font-mono">${it.expiry || '-'}</td>
+                  <td class="border border-slate-800 p-1 text-center">${it.pack}</td>
+                  <td class="border border-slate-800 p-1 text-center font-bold">${it.qty}</td>
+                  <td class="border border-slate-800 p-1 text-right font-mono">${Number(it.sellingPrice).toFixed(2)}</td>
+                  <td class="border border-slate-800 p-1 text-right font-mono font-bold">${(it.qty * it.sellingPrice).toFixed(2)}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
 
-          <!-- Total & Words Block -->
-          <div style="border: 1px solid #64748b; border-top: none; padding: 6px 8px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
-            <div>
-              <div>अक्षरों में: <b>${bill.inWords}</b></div>
-              <div style="font-size: 10px; color: #64748b;">योग (Total Qty): <b>${bill.totalQty}</b></div>
+          <!-- Totals Breakdown -->
+          <div class="border border-slate-800 border-t-0 p-2 text-[11px] font-bold space-y-1 bg-slate-50">
+            <div class="flex justify-between items-center">
+              <div>अक्षरों में: <span class="font-semibold text-slate-800">${bill.inWords}</span></div>
+              <div class="text-right">
+                <span>उप-योग: </span><span class="font-mono">₹${Number(bill.subtotal).toFixed(2)}</span>
+              </div>
             </div>
-            <div style="text-align: right;">
-              <span style="font-weight: 600;">कुल रकम: </span>
-              <span style="font-size: 15px; font-weight: 900; color: #0f172a;">₹${Number(bill.grandTotal).toFixed(2)}</span>
+            ${bill.discount > 0 ? `
+              <div class="flex justify-between items-center text-emerald-700">
+                <span>विशेष छूट:</span>
+                <span class="font-mono">- ₹${Number(bill.discount).toFixed(2)}</span>
+              </div>
+            ` : ''}
+            <div class="flex justify-between items-center text-xs border-t border-slate-300 pt-1">
+              <span>कुल देय रकम (Grand Total):</span>
+              <span class="font-mono font-black text-sm text-slate-900">₹${Number(bill.grandTotal).toFixed(2)}</span>
             </div>
+            <div class="flex justify-between items-center text-[10.5px]">
+              <span>प्राप्त जमा राशि (Paid):</span>
+              <span class="font-mono text-emerald-800">₹${Number(bill.paidAmount).toFixed(2)}</span>
+            </div>
+            ${bill.balanceDue > 0 ? `
+              <div class="flex justify-between items-center text-xs text-rose-700 border-t border-slate-300 pt-0.5">
+                <span>शेष बाकी उधारी (Balance Due):</span>
+                <span class="font-mono font-black">₹${Number(bill.balanceDue).toFixed(2)}</span>
+              </div>
+            ` : ''}
           </div>
 
-          ${bill.paymentMode === 'credit' || bill.balanceDue > 0 ? `
-            <div style="border: 1px solid #64748b; border-top: none; padding: 4px 8px; background: #fff1f2; display: flex; justify-content: space-between; font-size: 11px; color: #be123c;">
-              <span>जमा राशि: <b>₹${Number(bill.paidAmount).toFixed(2)}</b></span>
-              <span>शेष उधारी (Balance Due): <b>₹${Number(bill.balanceDue).toFixed(2)}</b></span>
-            </div>
-          ` : ''}
-
-          <!-- Terms & Statutory Notes -->
-          <div style="margin-top: 8px; font-size: 9.5px; color: #475569; line-height: 1.35; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;">
-            <div><b>नोट:</b> 1. बिका हुआ माल वापस नहीं होगा। 2. भूल चूक लेना देना।</div>
-            <div>3. कीटनाशक दवाईयों कृषि कार्य हेतु हैं, उसके गलत उपयोग की जिम्मेदारी हमारी नहीं होगी।</div>
-            <div>4. एक माह के अंदर रकम नहीं पटाने पर ब्याज लगेगा।</div>
+          <!-- Statutory Conditions & Signatures -->
+          <div class="text-[9px] mt-2 border-b border-dashed border-slate-400 pb-1 text-slate-600 leading-tight">
+            नोट - 1. बिका हुआ माल वापस नहीं होगा। 2. भूल चूक लेना देना। 3. कीटनाशक दवाईयां कृषि कार्य हेतु हैं, उसके गलत उपयोग की जिम्मेदारी हमारी नहीं होगी। 4. एक माह के अंदर रकम नहीं पटाने पर ब्याज लगेगा।
           </div>
-
-          <!-- Signatures -->
-          <div style="display: flex; justify-content: space-between; margin-top: 24px; padding: 0 8px; font-size: 11px; font-weight: 700;">
+          <div class="flex justify-between mt-6 text-[10.5px] font-bold px-2 text-slate-800">
             <div>हस्ताक्षर क्रेता (किसान)</div>
-            <div style="text-align: right;">
-              <div>हस्ताक्षर विक्रेता</div>
-              <div style="font-size: 9px; font-weight: normal; color: #64748b;">(जीवन कृषि केन्द्र)</div>
+            <div class="text-right">
+              <div>कृते: <b>जीवन कृषि केन्द्र</b></div>
+              <div class="text-[9px] font-normal text-slate-500">(अधिकृत हस्ताक्षर)</div>
             </div>
           </div>
-
         </div>
       `;
+
+      modal.classList.remove('hidden');
     }
 
     function closeInvoiceModal() {
-      document.getElementById('invoice-modal').classList.add('hidden');
+      const modal = document.getElementById('invoice-modal');
+      if (modal) modal.classList.add('hidden');
     }
 
     function printBill() {
-      if (!currentActiveBill) {
-        alert('कोई बिल लोड नहीं है!');
-        return;
-      }
-      try {
-        window.print();
-      } catch (e) {
-        alert('प्रिंटर डायलॉग खोलने में समस्या आई: ' + e.message);
-      }
+      window.print();
     }
 
     function shareOnWhatsApp() {
-      if (!currentActiveBill) {
-        alert('कृपया पहले कोई बिल चुनें या बनाएं!');
-        return;
-      }
+      if (!currentActiveBill) return;
       const b = currentActiveBill;
-      
-      const itemsList = (b.items || []).map((it, idx) => {
-        return `${idx + 1}. *${it.brandName}* (${it.pack || ''})\n   बैच: ${it.batch || '-'} | मात्रा: ${it.qty} x ₹${it.sellingPrice} = *₹${(it.qty * it.sellingPrice).toFixed(0)}*`;
-      }).join('\n');
+      const farmerLine = b.customerFatherName 
+        ? `${b.customerName} (आत्मज: श्री ${b.customerFatherName})` 
+        : b.customerName;
 
-      const text = 
-`*॥ जीवन कृषि केन्द्र ॥*
-रासायनिक खाद, उन्नत बीज व कृषि दवाईयां
-ग्राम - देवरी, जिला - धमतरी (छ.ग.)
-GSTIN: 22FTUPS0621B1ZU | मो.: 70891-01502
---------------------------------
-*प्रमाणित केश मेमो (Cash Memo)*
-*बिल क्र.:* #${b.billNumber}
-*दिनांक:* ${b.date}
-*किसान का नाम:* ${b.customerName}
-*गाँव / पता:* ${b.customerVillage || 'देवरी'}
-*भुगतान प्रकार:* ${b.paymentMode === 'cash' ? 'नकद (CASH)' : 'उधार (CREDIT)'}
---------------------------------
-*खरीदी गई दवाईयाँ:*
-${itemsList}
---------------------------------
-*उप-योग (Subtotal):* ₹${b.subtotal}
-${b.discount > 0 ? `*छूट (Discount):* -₹${b.discount}\n` : ''}*कुल देय रकम (Grand Total):* *₹${b.grandTotal}*
-*जमा राशि (Paid):* ₹${b.paidAmount}
-${b.balanceDue > 0 ? `*शेष उधारी (Balance Due):* *₹${b.balanceDue}* ⚠️\n` : ''}अक्षरों में: ${b.inWords || (b.grandTotal + ' रुपये मात्र')}
---------------------------------
-_नोट: 1. बिका हुआ माल वापस नहीं होगा। 2. कीटनाशक दवाईयां कृषि कार्य हेतु हैं।_
-*धन्यवाद! जीवन कृषि केन्द्र, देवरी*`;
+      let itemsText = b.items.map((it, idx) => 
+        `${idx + 1}. ${it.brandName} (${it.pack}) | बैच: ${it.batch || '-'} | मात्रा: ${it.qty} | दर: ₹${it.sellingPrice} | रकम: ₹${it.qty * it.sellingPrice}`
+      ).join('%0A');
 
-      const cleanPhone = (b.customerPhone || '').replace(/[^0-9]/g, '');
-      let waUrl;
-      if (cleanPhone.length === 10) {
-        waUrl = `https://api.whatsapp.com/send?phone=91${cleanPhone}&text=${encodeURIComponent(text)}`;
-      } else if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) {
-        waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`;
-      } else {
-        waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-      }
+      const message = 
+        `*॥ जीवन कृषि केन्द्र ॥*%0A` +
+        `ग्राम - देवरी, धमतरी (छ.ग.)%0A` +
+        `GSTIN: 22FTUPS0621B1ZU | M: 70891-01502%0A` +
+        `--------------------------------%0A` +
+        `*बिल क्र.:* #${b.billNumber} | *दिनांक:* ${b.date}%0A` +
+        `*किसान:* ${farmerLine}%0A` +
+        `*गाँव:* ${b.customerVillage || 'देवरी'}%0A` +
+        `*बिल प्रकार:* ${b.paymentMode === 'cash' ? 'नकद (Cash)' : 'उधार (Credit)'}%0A` +
+        `--------------------------------%0A` +
+        `${itemsText}%0A` +
+        `--------------------------------%0A` +
+        `*कुल रकम:* ₹${b.grandTotal}%0A` +
+        `*जमा राशि:* ₹${b.paidAmount}%0A` +
+        (b.balanceDue > 0 ? `*शेष बाकी उधारी:* ₹${b.balanceDue}%0A` : '') +
+        `--------------------------------%0A` +
+        `कीटनाशक दवाईयां केवल कृषि कार्य हेतु हैं।%0A` +
+        `धन्यवाद! आपकी उत्तम फसल हमारी प्राथमिकता है।`;
+
+      const cleanPhone = (b.customerPhone || '').replace(/\D/g, '');
+      const waUrl = cleanPhone.length >= 10 
+        ? `https://wa.me/91${cleanPhone.slice(-10)}?text=${message}`
+        : `https://wa.me/?text=${message}`;
 
       window.open(waUrl, '_blank');
     }
 
-    // SCREEN 2: Search Screen
+    // SCREEN 2: Search Screen (Completely stable inputs)
     function renderSearchScreen(container) {
+      container.innerHTML = `
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          <div class="relative">
+            <span class="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
+            <input 
+              type="text" 
+              id="search-main-input"
+              placeholder="रोग, कीट या दवा लिखें (उदा. illi, bph, s mite, chess)..."
+              value="${searchQuery}"
+              oninput="onSearchQueryChange(this.value)"
+              class="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-agri-600 font-bold"
+            />
+            <button 
+              id="search-main-clear"
+              onclick="clearMainSearch()" 
+              style="display: ${searchQuery ? 'block' : 'none'};"
+              class="absolute right-3 top-2 text-slate-400 font-bold"
+            >✕</button>
+          </div>
+
+          <div id="search-cat-pills" class="flex gap-1.5 overflow-x-auto pb-0.5 text-xs">
+            ${['सभी', 'कीटनाशक', 'फफूंदनाशक'].map(cat => `
+              <button 
+                type="button"
+                onclick="setSearchCategory('${cat}')" 
+                class="px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-agri-700 text-white' : 'bg-slate-100 text-slate-600'}"
+              >
+                ${cat}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div id="search-results-container" class="space-y-3">
+          ${renderSearchResultsHtml()}
+        </div>
+      `;
+    }
+
+    function onSearchQueryChange(val) {
+      searchQuery = val;
+      const clearBtn = document.getElementById('search-main-clear');
+      if (clearBtn) clearBtn.style.display = val ? 'block' : 'none';
+      updateSearchResultsOnly();
+    }
+
+    function clearMainSearch() {
+      searchQuery = '';
+      const input = document.getElementById('search-main-input');
+      if (input) input.value = '';
+      const clearBtn = document.getElementById('search-main-clear');
+      if (clearBtn) clearBtn.style.display = 'none';
+      updateSearchResultsOnly();
+    }
+
+    function setSearchCategory(cat) {
+      selectedCategory = cat;
+      const pillBox = document.getElementById('search-cat-pills');
+      if (pillBox) {
+        pillBox.innerHTML = ['सभी', 'कीटनाशक', 'फफूंदनाशक'].map(c => `
+          <button 
+            type="button"
+            onclick="setSearchCategory('${c}')" 
+            class="px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${selectedCategory === c ? 'bg-agri-700 text-white' : 'bg-slate-100 text-slate-600'}"
+          >
+            ${c}
+          </button>
+        `).join('');
+      }
+      updateSearchResultsOnly();
+    }
+
+    function updateSearchResultsOnly() {
+      const box = document.getElementById('search-results-container');
+      if (box) box.innerHTML = renderSearchResultsHtml();
+    }
+
+    function renderSearchResultsHtml() {
       const filtered = products.filter(p => {
         const q = searchQuery.trim().toLowerCase();
         const matchCat = selectedCategory === 'सभी' || p.category.includes(selectedCategory);
@@ -1192,115 +1397,124 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
         return matchCat && matchText;
       });
 
-      container.innerHTML = `
-        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-          <div class="relative">
-            <span class="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
-            <input 
-              type="text" 
-              placeholder="रोग, कीट या दवा लिखें (उदा. illi, bph, s mite, chess)..."
-              value="${searchQuery}"
-              oninput="searchQuery = this.value; renderScreen();"
-              class="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-agri-600 font-bold"
-            />
-            ${searchQuery ? `<button onclick="searchQuery=''; renderScreen();" class="absolute right-3 top-2 text-slate-400 font-bold">✕</button>` : ''}
+      if (filtered.length === 0) {
+        return `
+          <div class="bg-white p-8 text-center rounded-2xl border border-dashed border-slate-300">
+            <p class="text-slate-500 font-bold text-sm">कोई दवा या रोग नहीं मिला!</p>
           </div>
+        `;
+      }
 
-          <div class="flex gap-1.5 overflow-x-auto pb-0.5 text-xs">
-            ${['सभी', 'कीटनाशक', 'फफूंदनाशक'].map(cat => `
-              <button onclick="selectedCategory='${cat}'; renderScreen();" class="px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-agri-700 text-white' : 'bg-slate-100 text-slate-600'}">
-                ${cat}
-              </button>
-            `).join('')}
-          </div>
-        </div>
+      return filtered.map(p => {
+        const acres = acreState[p.id] || 1.0;
+        const vIdx = selectedVariantState[p.id] || 0;
+        const v = p.variants[vIdx] || p.variants[0];
+        const totalDose = (p.dosePerAcre * acres).toFixed(0);
+        const bottles = Math.ceil(totalDose / v.size);
+        const pumps = Math.ceil(acres * 10);
+        const rate = paymentMode === 'cash' ? v.cashPrice : v.creditPrice;
 
-        <div class="space-y-3">
-          ${filtered.length === 0 ? `
-            <div class="bg-white p-8 text-center rounded-2xl border border-dashed border-slate-300">
-              <p class="text-slate-500 font-bold text-sm">कोई दवा या रोग नहीं मिला!</p>
-            </div>
-          ` : filtered.map(p => {
-            const acres = acreState[p.id] || 1.0;
-            const vIdx = selectedVariantState[p.id] || 0;
-            const v = p.variants[vIdx] || p.variants[0];
-            const totalDose = (p.dosePerAcre * acres).toFixed(0);
-            const bottles = Math.ceil(totalDose / v.size);
-            const pumps = Math.ceil(acres * 10);
-            const rate = paymentMode === 'cash' ? v.cashPrice : v.creditPrice;
-
-            return `
-              <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-start">
-                  <div>
-                    <div class="flex gap-1 mb-1">
-                      <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${p.crops.join(', ')}</span>
-                      <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">${p.iracFrac}</span>
-                    </div>
-                    <h3 class="font-black text-sm text-slate-900 leading-tight">${p.brandName}</h3>
-                    <p class="text-[11px] text-slate-500 font-semibold">${p.technical}</p>
-                  </div>
-                  <span class="text-[9.5px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded">${p.company}</span>
+        return `
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-start">
+              <div>
+                <div class="flex gap-1 mb-1">
+                  <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${p.crops.join(', ')}</span>
+                  <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">${p.iracFrac}</span>
                 </div>
+                <h3 class="font-black text-sm text-slate-900 leading-tight">${p.brandName}</h3>
+                <p class="text-[11px] text-slate-500 font-semibold">${p.technical}</p>
+              </div>
+              <span class="text-[9.5px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded">${p.company}</span>
+            </div>
 
-                <div class="p-3 space-y-2.5">
-                  <div class="grid grid-cols-2 gap-2 bg-emerald-50/60 p-2 rounded-xl border border-emerald-100 text-xs">
-                    <div>
-                      <span class="text-[9px] text-emerald-800 block">अनुशंसित एकड़ डोज़</span>
-                      <span class="font-extrabold text-slate-900 text-xs">${p.dosePerAcre} ${p.doseUnit}</span>
-                      <span class="text-[9px] text-emerald-700 block">पानी: ${p.waterPerAcre} L/एकड़</span>
-                    </div>
-                    <div class="border-l border-emerald-200 pl-2">
-                      <span class="text-[9px] text-emerald-800 block">15L पंप डोज़</span>
-                      <span class="font-extrabold text-slate-900 text-xs">${p.pumpDose15L}</span>
-                      <span class="text-[9px] text-emerald-700 block">~10 पंप/एकड़</span>
-                    </div>
-                  </div>
-
-                  <!-- Acre Dose Calculator -->
-                  <div class="bg-slate-900 text-white rounded-xl p-2.5 space-y-1.5">
-                    <div class="flex justify-between items-center text-xs">
-                      <span class="font-bold text-slate-200">एकड़ डोज़ कैलकुलेटर:</span>
-                      <div class="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
-                        <button onclick="acreState['${p.id}'] = Math.max(0.5, (acreState['${p.id}']||1) - 0.5); renderScreen();" class="px-2 py-0.5 font-bold hover:bg-slate-700 rounded">-</button>
-                        <span class="px-2 font-bold text-emerald-300 text-xs">${acres} एकड़</span>
-                        <button onclick="acreState['${p.id}'] = (acreState['${p.id}']||1) + 0.5; renderScreen();" class="px-2 py-0.5 font-bold hover:bg-slate-700 rounded">+</button>
-                      </div>
-                    </div>
-                    <div class="grid grid-cols-3 gap-1 text-center text-xs pt-1 border-t border-slate-800">
-                      <div class="bg-slate-800/80 p-1 rounded">
-                        <span class="text-[9px] text-slate-400 block">कुल दवा</span>
-                        <span class="font-bold text-emerald-400 text-xs">${totalDose} ${p.doseUnit}</span>
-                      </div>
-                      <div class="bg-slate-800/80 p-1 rounded">
-                        <span class="text-[9px] text-slate-400 block">बोतलें</span>
-                        <span class="font-bold text-emerald-400 text-xs">${bottles} पैक</span>
-                      </div>
-                      <div class="bg-slate-800/80 p-1 rounded">
-                        <span class="text-[9px] text-slate-400 block">पंप (15L)</span>
-                        <span class="font-bold text-emerald-400 text-xs">${pumps} पंप</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <button 
-                    onclick="addToCartFromSearch('${p.id}', ${vIdx}, ${bottles})"
-                    class="w-full bg-agri-600 hover:bg-agri-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm"
-                  >
-                    <span>🛒</span> बिल में जोड़ें (₹${rate * bottles})
-                  </button>
+            <div class="p-3 space-y-2.5">
+              <div class="grid grid-cols-2 gap-2 bg-emerald-50/60 p-2 rounded-xl border border-emerald-100 text-xs">
+                <div>
+                  <span class="text-[9px] text-emerald-800 block">अनुशंसित एकड़ डोज़</span>
+                  <span class="font-extrabold text-slate-900 text-xs">${p.dosePerAcre} ${p.doseUnit}</span>
+                  <span class="text-[9px] text-emerald-700 block">पानी: ${p.waterPerAcre} L/एकड़</span>
+                </div>
+                <div class="border-l border-emerald-200 pl-2">
+                  <span class="text-[9px] text-emerald-800 block">15L पंप डोज़</span>
+                  <span class="font-extrabold text-slate-900 text-xs">${p.pumpDose15L}</span>
+                  <span class="text-[9px] text-emerald-700 block">~10 पंप/एकड़</span>
                 </div>
               </div>
-            `;
-          }).join('')}
-        </div>
-      `;
+
+              <!-- Acre Dose Calculator (In-Place Updates) -->
+              <div class="bg-slate-900 text-white rounded-xl p-2.5 space-y-1.5">
+                <div class="flex justify-between items-center text-xs">
+                  <span class="font-bold text-slate-200">एकड़ डोज़ कैलकुलेटर:</span>
+                  <div class="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                    <button type="button" onclick="adjustProductAcre('${p.id}', -0.5)" class="px-2 py-0.5 font-bold hover:bg-slate-700 rounded">-</button>
+                    <span id="acre-label-${p.id}" class="px-2 font-bold text-emerald-300 text-xs">${acres} एकड़</span>
+                    <button type="button" onclick="adjustProductAcre('${p.id}', 0.5)" class="px-2 py-0.5 font-bold hover:bg-slate-700 rounded">+</button>
+                  </div>
+                </div>
+                <div class="grid grid-cols-3 gap-1 text-center text-xs pt-1 border-t border-slate-800">
+                  <div class="bg-slate-800/80 p-1 rounded">
+                    <span class="text-[9px] text-slate-400 block">कुल दवा</span>
+                    <span id="total-dose-${p.id}" class="font-bold text-emerald-400 text-xs">${totalDose} ${p.doseUnit}</span>
+                  </div>
+                  <div class="bg-slate-800/80 p-1 rounded">
+                    <span class="text-[9px] text-slate-400 block">बोतलें</span>
+                    <span id="total-bottles-${p.id}" class="font-bold text-emerald-400 text-xs">${bottles} पैक</span>
+                  </div>
+                  <div class="bg-slate-800/80 p-1 rounded">
+                    <span class="text-[9px] text-slate-400 block">पंप (15L)</span>
+                    <span id="total-pumps-${p.id}" class="font-bold text-emerald-400 text-xs">${pumps} पंप</span>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                type="button"
+                id="btn-add-search-${p.id}"
+                onclick="addToCartFromSearch('${p.id}', ${vIdx})"
+                class="w-full bg-agri-600 hover:bg-agri-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <span>🛒</span> बिल में जोड़ें (<span id="btn-add-price-${p.id}">₹${rate * bottles}</span>)
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
-    function addToCartFromSearch(pId, vIdx, qty) {
+    function adjustProductAcre(pId, delta) {
+      const cur = acreState[pId] || 1.0;
+      const next = Math.max(0.5, cur + delta);
+      acreState[pId] = next;
+
       const prod = products.find(p => p.id === pId);
       if (!prod) return;
+      const v = prod.variants[0];
+      const totalDose = (prod.dosePerAcre * next).toFixed(0);
+      const bottles = Math.ceil(totalDose / v.size);
+      const pumps = Math.ceil(next * 10);
+      const rate = paymentMode === 'cash' ? v.cashPrice : v.creditPrice;
+
+      const acreLabel = document.getElementById(`acre-label-${pId}`);
+      const doseEl = document.getElementById(`total-dose-${pId}`);
+      const bottlesEl = document.getElementById(`total-bottles-${pId}`);
+      const pumpsEl = document.getElementById(`total-pumps-${pId}`);
+      const priceEl = document.getElementById(`btn-add-price-${pId}`);
+
+      if (acreLabel) acreLabel.textContent = `${next} एकड़`;
+      if (doseEl) doseEl.textContent = `${totalDose} ${prod.doseUnit}`;
+      if (bottlesEl) bottlesEl.textContent = `${bottles} पैक`;
+      if (pumpsEl) pumpsEl.textContent = `${pumps} पंप`;
+      if (priceEl) priceEl.textContent = `₹${rate * bottles}`;
+    }
+
+    function addToCartFromSearch(pId, vIdx) {
+      const prod = products.find(p => p.id === pId);
+      if (!prod) return;
+      const acres = acreState[pId] || 1.0;
       const v = prod.variants[vIdx] || prod.variants[0];
+      const totalDose = prod.dosePerAcre * acres;
+      const qty = Math.ceil(totalDose / v.size);
       const rate = paymentMode === 'cash' ? v.cashPrice : v.creditPrice;
       const existing = cart.find(i => i.productId === pId && i.pack === `${v.size} ${v.unit}`);
 
@@ -1323,7 +1537,7 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
       switchTab('billing');
     }
 
-    // SCREEN 3: Crop Stage Guide
+    // SCREEN 3: Crop Stage Guide (Static, no input issues)
     function renderStageGuideScreen(container) {
       container.innerHTML = `
         <div class="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-3 rounded-2xl shadow-sm space-y-1.5 text-xs">
@@ -1336,58 +1550,45 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
         </div>
 
         <div class="space-y-3 pt-2">
-          ${cropStages.map((st, idx) => {
-            return `
-              <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">${st.stageBadge}</span>
-                    <h3 class="font-extrabold text-xs text-slate-900">${st.stageName}</h3>
-                  </div>
-                  <span class="text-[10px] text-slate-400 font-bold">#${idx + 1}</span>
+          ${cropStages.map((st, idx) => `
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">${st.stageBadge}</span>
+                  <h3 class="font-extrabold text-xs text-slate-900">${st.stageName}</h3>
                 </div>
+                <span class="text-[10px] text-slate-400 font-bold">#${idx + 1}</span>
+              </div>
 
-                <div class="p-3 space-y-2 text-xs">
-                  <div>
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">खेत में क्या देखें (अवलोकन):</span>
-                    <p class="text-slate-800 font-semibold mt-0.5 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                      ${st.observation}
-                    </p>
-                  </div>
-                  <div>
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">कीट / रोग:</span>
-                    <span class="inline-block font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200/60 mt-0.5">
-                      ⚠️ ${st.targetPest}
-                    </span>
-                  </div>
+              <div class="p-3 space-y-2 text-xs">
+                <div>
+                  <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">खेत में क्या देखें (अवलोकन):</span>
+                  <p class="text-slate-800 font-semibold mt-0.5 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                    ${st.observation}
+                  </p>
+                </div>
+                <div>
+                  <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">कीट / रोग:</span>
+                  <span class="inline-block font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200/60 mt-0.5">
+                    ⚠️ ${st.targetPest}
+                  </span>
                 </div>
               </div>
-            `;
-          }).join('')}
+            </div>
+          `).join('')}
         </div>
       `;
     }
 
-    // SCREEN 4: CRUD Screen
+    // SCREEN 4: CRUD Screen (Completely isolated forms and inputs)
     function renderCrudScreen(container) {
-      const editItem = crudEditId ? products.find(p => p.id === crudEditId) : null;
-      const editVariant = editItem ? (editItem.variants && editItem.variants[0] ? editItem.variants[0] : {}) : {};
-
-      const filteredCrudProducts = products.filter(p => {
-        if (!crudSearchTerm.trim()) return true;
-        const q = crudSearchTerm.toLowerCase().trim();
-        return p.brandName.toLowerCase().includes(q) ||
-               p.technical.toLowerCase().includes(q) ||
-               (p.variants && p.variants.some(v => (v.batch && v.batch.toLowerCase().includes(q))));
-      });
-
       container.innerHTML = `
         <!-- Top Action Bar for Bulk & Single Add -->
         <div class="flex items-center justify-between gap-2 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
           <div>
             <h3 class="font-extrabold text-sm text-slate-800 flex items-center gap-1.5">
               <span>📦</span>
-              <span>${editItem ? 'उत्पाद विवरण संपादित करें (Edit)' : 'उत्पाद एवं स्टॉक प्रबंधन'}</span>
+              <span id="crud-panel-title">उत्पाद एवं स्टॉक प्रबंधन</span>
             </h3>
             <p class="text-[10px] text-slate-500 mt-0.5">नकद/उधार दर, बैच नंबर, एक्सपायरी व बल्क अपलोड</p>
           </div>
@@ -1401,18 +1602,17 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
         </div>
 
         <!-- Add / Edit Single Product Form -->
-        <form onsubmit="handleSaveProduct(event)" class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2.5 text-xs">
+        <form id="crud-product-form" onsubmit="handleSaveProduct(event)" class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2.5 text-xs">
           <div class="flex justify-between items-center pb-1 border-b border-slate-100">
-            <span class="font-black text-xs ${editItem ? 'text-amber-700' : 'text-slate-700'}">
-              ${editItem ? '✏️ संपादन मोड: ' + editItem.brandName : '➕ नया उत्पाद जोड़ें (Add Single Product)'}
+            <span id="crud-form-heading" class="font-black text-xs text-slate-700">
+              ➕ नया उत्पाद जोड़ें (Add Single Product)
             </span>
-            ${editItem ? `
-              <button 
-                type="button" 
-                onclick="cancelEditProduct()"
-                class="text-[11px] text-rose-600 hover:underline font-bold"
-              >✕ संपादन रद्द करें</button>
-            ` : ''}
+            <button 
+              type="button" 
+              id="crud-cancel-btn"
+              onclick="cancelEditProduct()"
+              class="hidden text-[11px] text-rose-600 hover:underline font-bold"
+            >✕ संपादन रद्द करें</button>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1423,7 +1623,6 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                 id="crud-name" 
                 required 
                 placeholder="उदा. कोराजन (Coragen)" 
-                value="${editItem ? editItem.brandName : ''}"
                 class="w-full p-2 border border-slate-200 rounded-xl font-bold text-slate-900 bg-slate-50 focus:bg-white" 
               />
             </div>
@@ -1434,7 +1633,6 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                 id="crud-tech" 
                 required 
                 placeholder="उदा. Chlorantraniliprole 18.5% SC" 
-                value="${editItem ? editItem.technical : ''}"
                 class="w-full p-2 border border-slate-200 rounded-xl font-semibold text-slate-800 bg-slate-50 focus:bg-white" 
               />
             </div>
@@ -1447,18 +1645,18 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                 type="text" 
                 id="crud-company" 
                 placeholder="उदा. FMC / Syngenta" 
-                value="${editItem ? editItem.company : 'जीवन कृषि स्पेशल'}"
+                value="जीवन कृषि स्पेशल"
                 class="w-full p-2 border border-slate-200 rounded-xl font-semibold" 
               />
             </div>
             <div>
               <label class="block text-[10px] font-bold text-slate-500 mb-0.5">श्रेणी (Category)</label>
               <select id="crud-category" class="w-full p-2 border border-slate-200 rounded-xl font-bold bg-white">
-                <option value="कीटनाशक" ${editItem && editItem.category.includes('कीटनाशक') ? 'selected' : ''}>कीटनाशक</option>
-                <option value="फफूंदनाशक" ${editItem && editItem.category.includes('फफूंदनाशक') ? 'selected' : ''}>फफूंदनाशक</option>
-                <option value="खरपतवारनाशक" ${editItem && editItem.category.includes('खरपतवारनाशक') ? 'selected' : ''}>खरपतवारनाशक</option>
-                <option value="टॉनिक / PGR" ${editItem && editItem.category.includes('टॉनिक') ? 'selected' : ''}>टॉनिक / PGR</option>
-                <option value="खाद / उर्वरक" ${editItem && editItem.category.includes('खाद') ? 'selected' : ''}>खाद / उर्वरक</option>
+                <option value="कीटनाशक">कीटनाशक</option>
+                <option value="फफूंदनाशक">फफूंदनाशक</option>
+                <option value="खरपतवारनाशक">खरपतवारनाशक</option>
+                <option value="टॉनिक / PGR">टॉनिक / PGR</option>
+                <option value="खाद / उर्वरक">खाद / उर्वरक</option>
               </select>
             </div>
             <div>
@@ -1468,14 +1666,14 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                   type="number" 
                   id="crud-pack-size" 
                   placeholder="60" 
-                  value="${editVariant.size || 60}"
+                  value="60"
                   class="w-full p-2 border border-slate-200 rounded-xl font-bold text-center" 
                 />
                 <select id="crud-pack-unit" class="p-2 border border-slate-200 rounded-xl font-bold bg-white text-xs">
-                  <option value="ml" ${editVariant.unit === 'ml' ? 'selected' : ''}>ml</option>
-                  <option value="g" ${editVariant.unit === 'g' ? 'selected' : ''}>g</option>
-                  <option value="kg" ${editVariant.unit === 'kg' ? 'selected' : ''}>kg</option>
-                  <option value="L" ${editVariant.unit === 'L' ? 'selected' : ''}>L</option>
+                  <option value="ml">ml</option>
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="L">L</option>
                 </select>
               </div>
             </div>
@@ -1485,7 +1683,7 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                 type="number" 
                 id="crud-stock" 
                 placeholder="स्टॉक संख्या" 
-                value="${editVariant.stock !== undefined ? editVariant.stock : 50}"
+                value="50"
                 class="w-full p-2 border border-slate-200 rounded-xl font-bold text-center" 
               />
             </div>
@@ -1500,7 +1698,7 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                 id="crud-batch" 
                 required 
                 placeholder="उदा. SMT10" 
-                value="${editVariant.batch || 'BT' + Math.floor(10 + Math.random()*90)}"
+                value="BT${Math.floor(10 + Math.random()*90)}"
                 class="w-full p-2 border border-slate-300 rounded-xl font-mono font-black text-slate-900 bg-white" 
               />
             </div>
@@ -1511,7 +1709,7 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                 id="crud-expiry" 
                 required 
                 placeholder="उदा. 08/28 या MM/YY" 
-                value="${editVariant.expiry || '12/28'}"
+                value="12/28"
                 class="w-full p-2 border border-slate-300 rounded-xl font-mono font-black text-slate-900 bg-white" 
               />
             </div>
@@ -1522,7 +1720,7 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                 id="crud-cash" 
                 required 
                 placeholder="नकद रेट" 
-                value="${editVariant.cashPrice || 500}"
+                value="500"
                 class="w-full p-2 border border-emerald-300 rounded-xl font-mono font-black text-emerald-900 bg-emerald-50 text-center" 
               />
             </div>
@@ -1533,7 +1731,7 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                 id="crud-credit" 
                 required 
                 placeholder="उधार रेट" 
-                value="${editVariant.creditPrice || 550}"
+                value="550"
                 class="w-full p-2 border border-rose-300 rounded-xl font-mono font-black text-rose-900 bg-rose-50 text-center" 
               />
             </div>
@@ -1546,7 +1744,7 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                 type="number" 
                 id="crud-dose" 
                 placeholder="डोज़ प्रति एकड़ (उदा. 60)" 
-                value="${editItem ? editItem.dosePerAcre : 60}"
+                value="60"
                 class="w-full p-2 border border-slate-200 rounded-xl font-semibold" 
               />
             </div>
@@ -1556,7 +1754,6 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
                 type="text" 
                 id="crud-keywords" 
                 placeholder="उदा. illi, sundi, stem borer, bph, इल्ली" 
-                value="${editItem && editItem.keywords ? editItem.keywords.join(', ') : ''}"
                 class="w-full p-2 border border-slate-200 rounded-xl font-semibold" 
               />
             </div>
@@ -1565,19 +1762,11 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
           <div class="flex gap-2 pt-1">
             <button 
               type="submit" 
-              class="flex-1 ${editItem ? 'bg-amber-600 hover:bg-amber-700' : 'bg-agri-700 hover:bg-agri-800'} text-white font-black py-2.5 rounded-xl text-xs shadow-sm transition"
+              id="crud-submit-btn"
+              class="flex-1 bg-agri-700 hover:bg-agri-800 text-white font-black py-2.5 rounded-xl text-xs shadow-sm transition"
             >
-              ${editItem ? '💾 परिवर्तन सुरक्षित करें (Update Product)' : '➕ उत्पाद सूची में जोड़ें (Save Product)'}
+              ➕ उत्पाद सूची में जोड़ें (Save Product)
             </button>
-            ${editItem ? `
-              <button 
-                type="button" 
-                onclick="cancelEditProduct()"
-                class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
-              >
-                रद्द करें
-              </button>
-            ` : ''}
           </div>
         </form>
 
@@ -1585,71 +1774,24 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
         <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <span class="text-xs font-black text-slate-800">
-              मौजूदा उत्पाद कैटलॉग (${filteredCrudProducts.length}/${products.length})
+              मौजूदा उत्पाद कैटलॉग (<span id="crud-count-badge">${products.length}</span>)
             </span>
             <div class="relative w-full sm:w-64">
               <input 
                 type="text" 
+                id="crud-search-input"
                 placeholder="कैटलॉग में खोजें (दवा, टेक्निकल या बैच)..."
                 value="${crudSearchTerm}"
-                oninput="crudSearchTerm = this.value; renderCrudScreen(document.getElementById('main-content'));"
+                oninput="onCrudSearchInput(this.value)"
                 class="w-full pl-7 pr-3 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-agri-600"
               />
               <span class="absolute left-2.5 top-1.5 text-slate-400 text-xs">🔍</span>
             </div>
           </div>
 
-          <div class="divide-y divide-slate-100 text-xs max-h-96 overflow-y-auto">
-            ${filteredCrudProducts.length === 0 ? `
-              <div class="p-6 text-center text-slate-400 font-semibold">
-                '${crudSearchTerm}' से मेल खाता कोई उत्पाद नहीं मिला।
-              </div>
-            ` : filteredCrudProducts.map(p => {
-              const v = p.variants && p.variants[0] ? p.variants[0] : { size: 100, unit: 'ml', batch: '-', expiry: '-', cashPrice: 0, creditPrice: 0, stock: 0 };
-              return `
-                <div class="py-2.5 flex flex-wrap sm:flex-nowrap justify-between items-center gap-2 hover:bg-slate-50/80 px-1 rounded-xl transition">
-                  <div class="flex-1 min-w-[200px]">
-                    <div class="flex items-center gap-1.5">
-                      <h4 class="font-extrabold text-slate-900 text-xs leading-tight">${p.brandName}</h4>
-                      <span class="text-[9px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.2 rounded">${p.company || 'सामान्य'}</span>
-                    </div>
-                    <p class="text-[10.5px] text-slate-500 mt-0.5">${p.technical}</p>
-                    <div class="flex flex-wrap items-center gap-2 text-[10px] mt-1 text-slate-600">
-                      <span class="bg-amber-50 text-amber-900 font-mono font-bold px-1.5 py-0.5 rounded border border-amber-200">
-                        बैच: ${v.batch || 'SMT10'}
-                      </span>
-                      <span class="bg-slate-100 text-slate-700 font-mono font-bold px-1.5 py-0.5 rounded">
-                        अव.: ${v.expiry || '08/28'}
-                      </span>
-                      <span class="font-semibold">भरती: ${v.size} ${v.unit}</span>
-                      <span class="font-bold text-emerald-700">नकद: ₹${v.cashPrice}</span>
-                      <span class="font-bold text-rose-700">उधार: ₹${v.creditPrice}</span>
-                      <span class="text-slate-500">स्टॉक: ${v.stock || 0}</span>
-                    </div>
-                  </div>
-
-                  <!-- Edit & Delete Action Buttons -->
-                  <div class="flex items-center gap-1.5 shrink-0">
-                    <button 
-                      type="button" 
-                      onclick="startEditProduct('${p.id}')"
-                      class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg font-bold text-[11px] transition flex items-center gap-1"
-                    >
-                      <span>✏️</span>
-                      <span>एडिट</span>
-                    </button>
-                    <button 
-                      type="button" 
-                      onclick="deleteProduct('${p.id}')"
-                      class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-bold text-[11px] transition flex items-center gap-1"
-                    >
-                      <span>🗑️</span>
-                      <span>हटाएं</span>
-                    </button>
-                  </div>
-                </div>
-              `;
-            }).join('')}
+          <!-- Catalog items list only -->
+          <div id="crud-products-list" class="divide-y divide-slate-100 text-xs max-h-96 overflow-y-auto">
+            ${renderCrudItemsListHtml()}
           </div>
         </div>
 
@@ -1710,16 +1852,140 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
       `;
     }
 
+    function onCrudSearchInput(val) {
+      crudSearchTerm = val;
+      const listEl = document.getElementById('crud-products-list');
+      if (listEl) listEl.innerHTML = renderCrudItemsListHtml();
+    }
+
+    function renderCrudItemsListHtml() {
+      const filtered = products.filter(p => {
+        if (!crudSearchTerm.trim()) return true;
+        const q = crudSearchTerm.toLowerCase().trim();
+        return p.brandName.toLowerCase().includes(q) ||
+               p.technical.toLowerCase().includes(q) ||
+               (p.variants && p.variants.some(v => (v.batch && v.batch.toLowerCase().includes(q))));
+      });
+
+      if (filtered.length === 0) {
+        return `
+          <div class="p-6 text-center text-slate-400 font-semibold">
+            '${crudSearchTerm}' से मेल खाता कोई उत्पाद नहीं मिला।
+          </div>
+        `;
+      }
+
+      return filtered.map(p => {
+        const v = p.variants && p.variants[0] ? p.variants[0] : { size: 100, unit: 'ml', batch: '-', expiry: '-', cashPrice: 0, creditPrice: 0, stock: 0 };
+        return `
+          <div class="py-2.5 flex flex-wrap sm:flex-nowrap justify-between items-center gap-2 hover:bg-slate-50/80 px-1 rounded-xl transition">
+            <div class="flex-1 min-w-[200px]">
+              <div class="flex items-center gap-1.5">
+                <h4 class="font-extrabold text-slate-900 text-xs leading-tight">${p.brandName}</h4>
+                <span class="text-[9px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.2 rounded">${p.company || 'सामान्य'}</span>
+              </div>
+              <p class="text-[10.5px] text-slate-500 mt-0.5">${p.technical}</p>
+              <div class="flex flex-wrap items-center gap-2 text-[10px] mt-1 text-slate-600">
+                <span class="bg-amber-50 text-amber-900 font-mono font-bold px-1.5 py-0.5 rounded border border-amber-200">
+                  बैच: ${v.batch || 'SMT10'}
+                </span>
+                <span class="bg-slate-100 text-slate-700 font-mono font-bold px-1.5 py-0.5 rounded">
+                  अव.: ${v.expiry || '08/28'}
+                </span>
+                <span class="font-semibold">भरती: ${v.size} ${v.unit}</span>
+                <span class="font-bold text-emerald-700">नकद: ₹${v.cashPrice}</span>
+                <span class="font-bold text-rose-700">उधार: ₹${v.creditPrice}</span>
+                <span class="text-slate-500">स्टॉक: ${v.stock || 0}</span>
+              </div>
+            </div>
+
+            <!-- Edit & Delete Action Buttons -->
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button 
+                type="button" 
+                onclick="startEditProduct('${p.id}')"
+                class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg font-bold text-[11px] transition flex items-center gap-1"
+              >
+                <span>✏️</span>
+                <span>एडिट</span>
+              </button>
+              <button 
+                type="button" 
+                onclick="deleteProduct('${p.id}')"
+                class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-bold text-[11px] transition flex items-center gap-1"
+              >
+                <span>🗑️</span>
+                <span>हटाएं</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
     function startEditProduct(id) {
       crudEditId = id;
-      renderCrudScreen(document.getElementById('main-content'));
-      const formEl = document.getElementById('crud-name');
-      if (formEl) formEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const p = products.find(prod => prod.id === id);
+      if (!p) return;
+      const v = p.variants && p.variants[0] ? p.variants[0] : {};
+
+      const nameEl = document.getElementById('crud-name');
+      const techEl = document.getElementById('crud-tech');
+      const compEl = document.getElementById('crud-company');
+      const catEl = document.getElementById('crud-category');
+      const sizeEl = document.getElementById('crud-pack-size');
+      const unitEl = document.getElementById('crud-pack-unit');
+      const stockEl = document.getElementById('crud-stock');
+      const batchEl = document.getElementById('crud-batch');
+      const expEl = document.getElementById('crud-expiry');
+      const cashEl = document.getElementById('crud-cash');
+      const creditEl = document.getElementById('crud-credit');
+      const doseEl = document.getElementById('crud-dose');
+      const keyEl = document.getElementById('crud-keywords');
+
+      if (nameEl) nameEl.value = p.brandName;
+      if (techEl) techEl.value = p.technical;
+      if (compEl) compEl.value = p.company || '';
+      if (catEl) catEl.value = p.category;
+      if (sizeEl) sizeEl.value = v.size || 60;
+      if (unitEl) unitEl.value = v.unit || 'ml';
+      if (stockEl) stockEl.value = v.stock !== undefined ? v.stock : 50;
+      if (batchEl) batchEl.value = v.batch || '';
+      if (expEl) expEl.value = v.expiry || '';
+      if (cashEl) cashEl.value = v.cashPrice || 500;
+      if (creditEl) creditEl.value = v.creditPrice || 550;
+      if (doseEl) doseEl.value = p.dosePerAcre || 60;
+      if (keyEl) keyEl.value = p.keywords ? p.keywords.join(', ') : '';
+
+      const heading = document.getElementById('crud-form-heading');
+      const cancelBtn = document.getElementById('crud-cancel-btn');
+      const submitBtn = document.getElementById('crud-submit-btn');
+
+      if (heading) heading.textContent = `✏️ संपादन मोड: ${p.brandName}`;
+      if (cancelBtn) cancelBtn.classList.remove('hidden');
+      if (submitBtn) {
+        submitBtn.className = "flex-1 bg-amber-600 hover:bg-amber-700 text-white font-black py-2.5 rounded-xl text-xs shadow-sm transition";
+        submitBtn.textContent = "💾 परिवर्तन सुरक्षित करें (Update Product)";
+      }
+
+      if (nameEl) nameEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function cancelEditProduct() {
       crudEditId = null;
-      renderCrudScreen(document.getElementById('main-content'));
+      const form = document.getElementById('crud-product-form');
+      if (form) form.reset();
+
+      const heading = document.getElementById('crud-form-heading');
+      const cancelBtn = document.getElementById('crud-cancel-btn');
+      const submitBtn = document.getElementById('crud-submit-btn');
+
+      if (heading) heading.textContent = "➕ नया उत्पाद जोड़ें (Add Single Product)";
+      if (cancelBtn) cancelBtn.classList.add('hidden');
+      if (submitBtn) {
+        submitBtn.className = "flex-1 bg-agri-700 hover:bg-agri-800 text-white font-black py-2.5 rounded-xl text-xs shadow-sm transition";
+        submitBtn.textContent = "➕ उत्पाद सूची में जोड़ें (Save Product)";
+      }
     }
 
     function handleSaveProduct(e) {
@@ -1767,8 +2033,7 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
           };
           localStorage.setItem('jk_products', JSON.stringify(products));
           alert(`'${name}' उत्पाद विवरण सफलतापूर्वक अपडेट हो गया!`);
-          crudEditId = null;
-          renderScreen();
+          cancelEditProduct();
         }
       } else {
         const newProd = {
@@ -1792,18 +2057,29 @@ _नोट: 1. बिका हुआ माल वापस नहीं हो
         products.unshift(newProd);
         localStorage.setItem('jk_products', JSON.stringify(products));
         alert(`'${name}' उत्पाद सफलतापूर्वक कैटलॉग में जोड़ा गया!`);
-        renderScreen();
+        cancelEditProduct();
       }
+
+      const listEl = document.getElementById('crud-products-list');
+      if (listEl) listEl.innerHTML = renderCrudItemsListHtml();
+      const countEl = document.getElementById('crud-count-badge');
+      if (countEl) countEl.textContent = products.length;
     }
 
     function openBulkImportModal() {
-      showBulkModal = true;
-      renderCrudScreen(document.getElementById('main-content'));
+      const modal = document.getElementById('bulk-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
     }
 
     function closeBulkImportModal() {
-      showBulkModal = false;
-      renderCrudScreen(document.getElementById('main-content'));
+      const modal = document.getElementById('bulk-modal');
+      if (modal) {
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+      }
     }
 
     function loadBulkSampleData() {
@@ -1882,8 +2158,11 @@ Pulsor, Thifluzamide 24% SC, Insecticides India, फफूंदनाशक, 15
       if (count > 0) {
         localStorage.setItem('jk_products', JSON.stringify(products));
         alert(`शानदार! कुल ${count} उत्पाद सफलतापूर्वक बल्क में जुड़ गए!`);
-        showBulkModal = false;
-        renderScreen();
+        closeBulkImportModal();
+        const listEl = document.getElementById('crud-products-list');
+        if (listEl) listEl.innerHTML = renderCrudItemsListHtml();
+        const countEl = document.getElementById('crud-count-badge');
+        if (countEl) countEl.textContent = products.length;
       } else {
         alert('कोई वैध उत्पाद पंक्ति नहीं मिली! कृपया फॉर्मेट जांचें।');
       }
@@ -1895,8 +2174,11 @@ Pulsor, Thifluzamide 24% SC, Insecticides India, फफूंदनाशक, 15
       if (confirm(`क्या आप '${name}' को दुकान कैटलॉग से स्थायी रूप से हटाना चाहते हैं?`)) {
         products = products.filter(item => item.id !== id);
         localStorage.setItem('jk_products', JSON.stringify(products));
-        if (crudEditId === id) crudEditId = null;
-        renderScreen();
+        if (crudEditId === id) cancelEditProduct();
+        const listEl = document.getElementById('crud-products-list');
+        if (listEl) listEl.innerHTML = renderCrudItemsListHtml();
+        const countEl = document.getElementById('crud-count-badge');
+        if (countEl) countEl.textContent = products.length;
       }
     }
 
