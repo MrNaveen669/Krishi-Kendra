@@ -1,0 +1,1949 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>जीवन कृषि केन्द्र — स्मार्ट सलाहकार, POS एवं Supabase क्लाउड DB</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Supabase JS CDN (v2) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Mukta', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            agri: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Robust Multi-Device Print CSS */
+    @media print {
+      html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+      }
+      body > *:not(#invoice-modal) {
+        display: none !important;
+      }
+      #app-wrapper, #supabase-modal {
+        display: none !important;
+      }
+      #invoice-modal {
+        display: block !important;
+        position: static !important;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      #invoice-modal > div {
+        max-width: 100% !important;
+        width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+      }
+      #invoice-modal-header,
+      #invoice-modal-actions,
+      #invoice-modal button {
+        display: none !important;
+      }
+      #print-invoice-area {
+        display: block !important;
+        visibility: visible !important;
+        position: static !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        overflow: visible !important;
+      }
+      #print-invoice-area * {
+        visibility: visible !important;
+        color: #000000 !important;
+      }
+    }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="bg-slate-900 font-sans text-slate-800 antialiased min-h-screen flex flex-col items-center justify-start p-2 sm:p-4">
+
+  <!-- Device View Controller & Cloud Status Bar -->
+  <div id="device-view-bar" class="w-full max-w-5xl mb-2.5 flex items-center justify-between text-white text-xs px-2">
+    <div class="flex items-center gap-2">
+      <span id="cloud-indicator-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+      <span id="cloud-indicator-text" class="font-bold tracking-wide text-[11px]">लोकल मोड (LocalStorage)</span>
+      <button onclick="openSupabaseModal()" class="ml-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-emerald-300 font-mono text-[10px] border border-slate-700">
+        ⚡ Supabase सेटिंग्स
+      </button>
+    </div>
+    <div class="flex items-center gap-1.5 bg-slate-800 p-1 rounded-xl border border-slate-700">
+      <button onclick="setDeviceView('mobile')" id="btn-view-mobile" class="px-3 py-1 rounded-lg font-bold bg-agri-600 text-white transition-all text-[11px]">
+        📱 मोबाइल
+      </button>
+      <button onclick="setDeviceView('desktop')" id="btn-view-desktop" class="px-3 py-1 rounded-lg font-bold text-slate-400 hover:text-white transition-all text-[11px]">
+        💻 डेस्कटॉप
+      </button>
+    </div>
+  </div>
+
+  <!-- App Main Frame -->
+  <div id="app-wrapper" class="w-full max-w-[480px] bg-slate-100 rounded-3xl shadow-2xl border-4 border-slate-700 overflow-hidden flex flex-col min-h-[850px] max-h-[94vh] transition-all duration-300 relative">
+
+    <!-- Top Business Header -->
+    <header class="bg-agri-800 text-white px-4 py-3 shrink-0 shadow-md">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 bg-agri-700 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-inner">
+            🌱
+          </div>
+          <div>
+            <h1 class="text-base font-black leading-tight tracking-wide">जीवन कृषि केन्द्र</h1>
+            <p class="text-[10.5px] text-emerald-200">रासायनिक खाद, उन्नत बीज व कृषि दवाईयां | देवरी (धमतरी)</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="text-[9.5px] font-mono font-bold bg-agri-900/90 text-emerald-300 px-2 py-0.5 rounded-md border border-agri-700 block">
+            GST: 22FTUPS0621B1ZU
+          </span>
+          <span class="text-[9.5px] text-slate-300 mt-0.5 block">M: 70891-01502</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Scrollable Main Content -->
+    <main id="main-content" class="flex-1 overflow-y-auto p-3 space-y-3 pb-24">
+      <!-- Injected by JavaScript -->
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-2 py-2 flex items-center justify-around z-30 shadow-lg">
+      <button onclick="switchTab('billing')" id="tab-billing" class="nav-btn flex flex-col items-center text-agri-700 font-extrabold text-[10.5px] relative">
+        <span class="text-lg">🧾</span>
+        <span>बिलिंग (POS)</span>
+        <span id="cart-badge" class="hidden absolute -top-1 -right-1 bg-rose-600 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold">0</span>
+      </button>
+      <button onclick="switchTab('search')" id="tab-search" class="nav-btn flex flex-col items-center text-slate-400 font-medium text-[10.5px]">
+        <span class="text-lg">🔍</span>
+        <span>रोग खोज</span>
+      </button>
+      <button onclick="switchTab('stageGuide')" id="tab-stageGuide" class="nav-btn flex flex-col items-center text-slate-400 font-medium text-[10.5px]">
+        <span class="text-lg">🌾</span>
+        <span>फसल अवस्था</span>
+      </button>
+      <button onclick="switchTab('crud')" id="tab-crud" class="nav-btn flex flex-col items-center text-slate-400 font-medium text-[10.5px]">
+        <span class="text-lg">📦</span>
+        <span>दवा सूची</span>
+      </button>
+      <button onclick="switchTab('history')" id="tab-history" class="nav-btn flex flex-col items-center text-slate-400 font-medium text-[10.5px]">
+        <span class="text-lg">📜</span>
+        <span>बिल इतिहास</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Supabase Settings Modal -->
+  <div id="supabase-modal" class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 hidden flex items-center justify-center p-3 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden my-4 border border-slate-200 text-xs">
+      <div class="p-3.5 bg-slate-900 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2 font-bold text-sm">
+          <span>⚡</span>
+          <span>Supabase क्लाउड डेटाबेस कनेक्शन</span>
+        </div>
+        <button onclick="closeSupabaseModal()" class="text-slate-400 hover:text-white font-bold text-base px-2">✕</button>
+      </div>
+
+      <div class="p-4 space-y-3">
+        <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900">
+          <b>क्लाउड सिंक:</b> Supabase Project URL और Anon Key डालने से दुकान के मोबाइल और कंप्यूटर दोनों पर एक ही डेटा सिंक रहेगा।
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Supabase Project URL:</label>
+          <input 
+            type="text" 
+            id="sb-url-input" 
+            placeholder="https://xyzcompany.supabase.co"
+            class="w-full p-2 border border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-agri-600"
+          />
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Supabase Anon Public API Key:</label>
+          <input 
+            type="password" 
+            id="sb-key-input" 
+            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            class="w-full p-2 border border-slate-200 rounded-xl font-mono text-xs focus:ring-2 focus:ring-agri-600"
+          />
+        </div>
+
+        <div class="flex gap-2 pt-1">
+          <button onclick="saveSupabaseSettings()" class="flex-1 bg-agri-700 hover:bg-agri-800 text-white font-extrabold py-2.5 rounded-xl shadow-sm">
+            💾 क्रेडेंशियल्स सेव व कनेक्ट करें
+          </button>
+          <button onclick="disconnectSupabase()" class="px-3 py-2 bg-slate-100 hover:bg-rose-50 text-rose-700 font-bold rounded-xl border border-slate-200">
+            डिस्कनेक्ट (लोकल मोड)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Printable Enhanced Legal Invoice Modal (A5 / Thermal format) -->
+  <div id="invoice-modal" class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 hidden flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden my-4">
+      <div id="invoice-modal-header" class="p-3 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center gap-1.5 font-extrabold text-xs text-slate-800">
+          <span>🧾</span>
+          <span>प्रमाणित केश मेमो (Legal Cash Memo Preview)</span>
+        </div>
+        <button onclick="closeInvoiceModal()" class="text-slate-400 hover:text-slate-700 font-bold px-2 py-0.5 text-base">✕</button>
+      </div>
+
+      <!-- Printable Area -->
+      <div id="print-invoice-area" class="p-4 bg-white text-slate-900 text-xs">
+        <!-- Rendered Dynamically -->
+      </div>
+
+      <!-- Modal Action Buttons -->
+      <div id="invoice-modal-actions" class="p-3 bg-slate-50 border-t border-slate-200 flex gap-2">
+        <button onclick="printBill()" class="flex-1 bg-slate-900 hover:bg-black text-white font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all">
+          🖨️ पर्ची प्रिंट निकालें
+        </button>
+        <button onclick="shareOnWhatsApp()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all">
+          💬 WhatsApp शेयर करें
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let supabaseClient = null;
+    let isSupabaseConnected = false;
+
+    // डिफ़ॉल्ट डेटाबेस
+    const DEFAULT_PRODUCTS = [
+      {
+        id: "p1",
+        brandName: "कोराजन (Coragen 18.5 SC)",
+        company: "FMC India",
+        technical: "Chlorantraniliprole 18.5% w/w SC",
+        iracFrac: "IRAC 28",
+        category: "कीटनाशक",
+        crops: ["धान (Paddy)", "मक्का"],
+        targets: ["तना छेदक (Stem Borer)", "पत्ता लपेटक (Leaf Folder)"],
+        dosePerAcre: 60,
+        doseUnit: "ml",
+        pumpDose15L: "4.5 - 6.0 ml",
+        waterPerAcre: 150,
+        warning: null,
+        remarks: "रयानॉडाइन रिसेप्टर मॉड्यूलेटर। लंबी सुरक्षा अवधि।",
+        keywords: ["illi", "sundi", "stem borer", "tana chedak", "coragen", "इल्ली", "सुंडी"],
+        variants: [
+          { size: 60, unit: "ml", batch: "CRG04", expiry: "07/28", cashPrice: 850, creditPrice: 900, acreCoverage: 1.0, stock: 45 },
+          { size: 150, unit: "ml", batch: "CRG15", expiry: "09/28", cashPrice: 1950, creditPrice: 2050, acreCoverage: 2.5, stock: 20 }
+        ]
+      },
+      {
+        id: "p2",
+        brandName: "एस माइट (S Mite)",
+        company: "PI Industries / Sun Life",
+        technical: "Ethion 50% EC",
+        iracFrac: "IRAC 1B",
+        category: "कीटनाशक / मकड़ीनाशक",
+        crops: ["धान (Paddy)", "सब्जियां"],
+        targets: ["मकड़ी (Mites)", "रस चूसक कीट"],
+        dosePerAcre: 400,
+        doseUnit: "ml",
+        pumpDose15L: "30 - 37.5 ml",
+        waterPerAcre: 200,
+        warning: "BPH (भूरा माहू) के प्रकोप में प्रयोग न करें (फ्लेयर-अप जोखिम)।",
+        remarks: "ऑर्गेनोफॉस्फेट समूह। तेज संपर्क एवं वाष्प क्रिया।",
+        keywords: ["s mite", "ethion", "mite", "makdi", "एस माइट", "मकड़ी"],
+        variants: [
+          { size: 1, unit: "L", batch: "SMT10", expiry: "08/28", cashPrice: 650, creditPrice: 700, acreCoverage: 2.5, stock: 30 }
+        ]
+      },
+      {
+        id: "p3",
+        brandName: "चेस (Chess 50% WG)",
+        company: "Syngenta India",
+        technical: "Pymetrozine 50% WG",
+        iracFrac: "IRAC 9B",
+        category: "कीटनाशक (माहू स्पेशल)",
+        crops: ["धान (Paddy)"],
+        targets: ["भूरा माहू (BPH)", "हरा फुदका (GLH)"],
+        dosePerAcre: 120,
+        doseUnit: "g",
+        pumpDose15L: "9.0 - 11.2 g",
+        waterPerAcre: 200,
+        warning: "कीट का रस चूसना तुरंत रोकता है। पौधों के निचले आधार पर स्प्रे करें।",
+        remarks: "भूख से कीट निष्क्रिय होता है। प्रतिरोध प्रबंधन हेतु आदर्श।",
+        keywords: ["chess", "pymetrozine", "mahu", "fudka", "चेस", "माहू"],
+        variants: [
+          { size: 120, unit: "g", batch: "SYN12", expiry: "06/28", cashPrice: 630, creditPrice: 670, acreCoverage: 1.0, stock: 40 }
+        ]
+      },
+      {
+        id: "p4",
+        brandName: "पेक्सलोन (Pexalon SC)",
+        company: "Corteva Agriscience",
+        technical: "Triflumezopyrim 10% w/w SC",
+        iracFrac: "IRAC 4E",
+        category: "कीटनाशक",
+        crops: ["धान (Paddy)"],
+        targets: ["भूरा माहू (BPH)", "सफेद पीठ माहू (WBPH)"],
+        dosePerAcre: 94,
+        doseUnit: "ml",
+        pumpDose15L: "7.0 ml",
+        waterPerAcre: 200,
+        warning: "स्प्रे का नोजल पौधों के आधार (तने/जड़ों) की तरफ रखें।",
+        remarks: "मेसो-आयोनिक रसायन। 200 लीटर पानी प्रति एकड़ अनिवार्य।",
+        keywords: ["pexalon", "bph", "mahuka", "पेक्सलोन", "भूरा माहू"],
+        variants: [
+          { size: 94, unit: "ml", batch: "PEX09", expiry: "10/28", cashPrice: 1350, creditPrice: 1420, acreCoverage: 1.0, stock: 25 },
+          { size: 235, unit: "ml", batch: "PEX23", expiry: "11/28", cashPrice: 3200, creditPrice: 3350, acreCoverage: 2.5, stock: 12 }
+        ]
+      },
+      {
+        id: "p5",
+        brandName: "पल्सर (Pulsor)",
+        company: "Insecticides India / Nissan",
+        technical: "Thifluzamide 24% SC",
+        iracFrac: "FRAC 7",
+        category: "फफूंदनाशक",
+        crops: ["धान (Paddy)"],
+        targets: ["शीथ ब्लाइट (Sheath Blight)"],
+        dosePerAcre: 150,
+        doseUnit: "ml",
+        pumpDose15L: "11.2 ml",
+        waterPerAcre: 200,
+        warning: null,
+        remarks: "शीथ ब्लाइट कवक पर विशिष्ट एवं लंबा सुरक्षात्मक नियंत्रण।",
+        keywords: ["pulsor", "sheath blight", "fungus", "galan", "पल्सर", "झुलसा"],
+        variants: [
+          { size: 150, unit: "ml", batch: "PLS15", expiry: "05/28", cashPrice: 780, creditPrice: 840, acreCoverage: 1.0, stock: 20 }
+        ]
+      }
+    ];
+
+    let products = JSON.parse(localStorage.getItem('jk_products')) || DEFAULT_PRODUCTS;
+    let billsHistory = JSON.parse(localStorage.getItem('jk_bills')) || [];
+
+    // Auto-Increment Bill Counter Logic (Independent & Persistent)
+    let savedNextBillNo = localStorage.getItem('jk_next_bill_no');
+    let nextBillNumber = savedNextBillNo ? parseInt(savedNextBillNo, 10) : 1218;
+
+    const cropStages = [
+      {
+        stageName: "प्रारंभिक अवस्था (रोपाई के 15-35 दिन)",
+        observation: "पत्तियों का मुड़ना, अंदर सफेद खुरचन, मुख्य गोब का सूखना (Dead Heart)।",
+        targetPest: "पत्ता लपेटक (Leaf Folder), प्रारंभिक तना छेदक",
+        recommendedTech: "Cartap Hydrochloride 75% SG (Mortar) या Emamectin Benzoate या Coragen।",
+        suggestedProdId: "p1",
+        stageBadge: "🌱 टिलरिंग (फुटाव)"
+      },
+      {
+        stageName: "सक्रिय फुटाव एवं तना गठन (40-65 दिन)",
+        observation: "निचले तने पर जल-सिक्त धब्बे, केंचुली जैसी फफूंद रेखाएं, गोब पीली पड़कर सूखना।",
+        targetPest: "शीथ ब्लाइट (Sheath Blight), तना छेदक",
+        recommendedTech: "थायफ्लूज़ामाइड 24% SC (Pulsor) या एज़ोक्सीस्ट्रोबिन + डिफेनोकोनाज़ोल।",
+        suggestedProdId: "p5",
+        stageBadge: "🌿 तना गठन"
+      },
+      {
+        stageName: "गभोट एवं बाली निकलना (65-85 दिन)",
+        observation: "पौधों के आधार (तने की जड़) पर भूरे फुदके का जमावड़ा (ETL: 5-10 कीट/हिल), झंडी पत्ती पर आंख के आकार के धब्बे।",
+        targetPest: "भूरा माहू (BPH), गर्दन तोड़ ब्लास्ट (Neck Blast)",
+        recommendedTech: "ट्राइफ्लूमेज़ोपाइरिम 10% SC (Pexalon) या Pymetrozine (Chess)। ब्लास्ट हेतु Tricyclazole कॉम्बो।",
+        suggestedProdId: "p4",
+        stageBadge: "🌾 गभोट / बाली"
+      },
+      {
+        stageName: "दूधिया अवस्था एवं दाना भराव (85-105 दिन)",
+        observation: "बालियों से दुर्गंध आना, दानों पर काले धब्बे या रस चूसते कीट; बालियों का सफेद व खोखला होना।",
+        targetPest: "गंधी बग (Rice Bug), देर का तना छेदक",
+        recommendedTech: "संपर्क कीटनाशक। ध्यान रहे: परागण (Flowering) के समय सीधे छिड़काव से बचें।",
+        suggestedProdId: "p2",
+        stageBadge: "🌾 दाना भराव"
+      }
+    ];
+
+    // Global State
+    let currentTab = 'billing';
+    let searchQuery = '';
+    let selectedCategory = 'सभी';
+    let acreState = {};
+    let selectedVariantState = {};
+    let crudEditId = null;
+    let crudSearchTerm = '';
+    let showBulkModal = false;
+    let cart = [
+      {
+        productId: "p2",
+        brandName: "एस माइट (S Mite)",
+        technical: "Ethion 50% EC",
+        pack: "1 L",
+        batch: "SMT10",
+        expiry: "08/28",
+        cashPrice: 650,
+        creditPrice: 700,
+        sellingPrice: 650,
+        qty: 1
+      },
+      {
+        productId: "p3",
+        brandName: "चेस (Chess 50% WG)",
+        technical: "Pymetrozine 50% WG",
+        pack: "120 g",
+        batch: "SYN12",
+        expiry: "06/28",
+        cashPrice: 630,
+        creditPrice: 670,
+        sellingPrice: 630,
+        qty: 1
+      }
+    ];
+    let paymentMode = 'cash';
+    let currentActiveBill = null;
+
+    // Customer & Billing State
+    let billCustomerName = 'Kali Ram Sahu';
+    let billCustomerVillage = 'Deori (देवरी)';
+    let billCustomerPhone = '70891-01502';
+    let billDiscount = 0;
+    let billPaidAmount = '';
+    let billingSearchTerm = '';
+
+    // Supabase DB Sync
+    function initSupabase() {
+      const url = localStorage.getItem('supabase_url');
+      const key = localStorage.getItem('supabase_key');
+      const dot = document.getElementById('cloud-indicator-dot');
+      const text = document.getElementById('cloud-indicator-text');
+
+      if (url && key && window.supabase) {
+        try {
+          supabaseClient = window.supabase.createClient(url, key);
+          isSupabaseConnected = true;
+          dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
+          text.textContent = "🟢 Supabase क्लाउड सिंक लाइव";
+        } catch (e) {
+          dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+          text.textContent = "लोकल मोड (LocalStorage)";
+        }
+      } else {
+        dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+        text.textContent = "लोकल मोड (LocalStorage)";
+      }
+    }
+
+    function openSupabaseModal() {
+      document.getElementById('supabase-modal').classList.remove('hidden');
+      document.getElementById('sb-url-input').value = localStorage.getItem('supabase_url') || '';
+      document.getElementById('sb-key-input').value = localStorage.getItem('supabase_key') || '';
+    }
+
+    function closeSupabaseModal() {
+      document.getElementById('supabase-modal').classList.add('hidden');
+    }
+
+    function saveSupabaseSettings() {
+      const url = document.getElementById('sb-url-input').value.trim();
+      const key = document.getElementById('sb-key-input').value.trim();
+      if (!url || !key) {
+        alert('कृपया Supabase URL और Anon Key दोनों दर्ज करें!');
+        return;
+      }
+      localStorage.setItem('supabase_url', url);
+      localStorage.setItem('supabase_key', key);
+      alert('क्रेडेंशियल्स सेव हो गए! Supabase कनेक्ट हो रहा है...');
+      closeSupabaseModal();
+      initSupabase();
+    }
+
+    function disconnectSupabase() {
+      if (confirm('क्या आप Supabase डिस्कनेक्ट करके केवल लोकल मोड में काम करना चाहते हैं?')) {
+        localStorage.removeItem('supabase_url');
+        localStorage.removeItem('supabase_key');
+        supabaseClient = null;
+        isSupabaseConnected = false;
+        closeSupabaseModal();
+        initSupabase();
+        renderScreen();
+      }
+    }
+
+    // UI View Control
+    function setDeviceView(view) {
+      const wrapper = document.getElementById('app-wrapper');
+      const btnMob = document.getElementById('btn-view-mobile');
+      const btnDesk = document.getElementById('btn-view-desktop');
+      if (view === 'desktop') {
+        wrapper.className = "w-full max-w-5xl bg-slate-100 rounded-2xl shadow-2xl border-4 border-slate-700 overflow-hidden flex flex-col min-h-[850px] max-h-[94vh] transition-all duration-300 relative";
+        btnDesk.className = "px-3 py-1 rounded-lg font-bold bg-agri-600 text-white transition-all text-[11px]";
+        btnMob.className = "px-3 py-1 rounded-lg font-bold text-slate-400 hover:text-white transition-all text-[11px]";
+      } else {
+        wrapper.className = "w-full max-w-[480px] bg-slate-100 rounded-3xl shadow-2xl border-4 border-slate-700 overflow-hidden flex flex-col min-h-[850px] max-h-[94vh] transition-all duration-300 relative";
+        btnMob.className = "px-3 py-1 rounded-lg font-bold bg-agri-600 text-white transition-all text-[11px]";
+        btnDesk.className = "px-3 py-1 rounded-lg font-bold text-slate-400 hover:text-white transition-all text-[11px]";
+      }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.nav-btn').forEach(b => {
+        b.className = "nav-btn flex flex-col items-center text-slate-400 font-medium text-[10.5px] relative";
+      });
+      const activeBtn = document.getElementById('tab-' + tab);
+      if (activeBtn) {
+        activeBtn.className = "nav-btn flex flex-col items-center text-agri-700 font-extrabold text-[10.5px] relative";
+      }
+      renderScreen();
+    }
+
+    function updateCartBadge() {
+      const badge = document.getElementById('cart-badge');
+      if (!badge) return;
+      if (cart.length > 0) {
+        badge.classList.remove('hidden');
+        badge.textContent = cart.length;
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function promptChangeBillNumber() {
+      const input = prompt("शुरुआती / अगला बिल नंबर दर्ज करें (उदा. 1217 या 1218):", nextBillNumber);
+      if (input !== null) {
+        const parsed = parseInt(input.trim(), 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          nextBillNumber = parsed;
+          localStorage.setItem('jk_next_bill_no', nextBillNumber);
+          renderScreen();
+        } else {
+          alert("कृपया मान्य संख्या दर्ज करें!");
+        }
+      }
+    }
+
+    function renderScreen() {
+      const container = document.getElementById('main-content');
+      if (currentTab === 'billing') renderBillingScreen(container);
+      else if (currentTab === 'search') renderSearchScreen(container);
+      else if (currentTab === 'stageGuide') renderStageGuideScreen(container);
+      else if (currentTab === 'crud') renderCrudScreen(container);
+      else if (currentTab === 'history') renderHistoryScreen(container);
+      updateCartBadge();
+    }
+
+    // SCREEN 1: POS Billing Counter
+    function renderBillingScreen(container) {
+      const subtotal = cart.reduce((acc, cur) => acc + (cur.qty * cur.sellingPrice), 0);
+      const grandTotal = Math.max(0, subtotal - Number(billDiscount || 0));
+      
+      let effectivePaid;
+      if (billPaidAmount === '') {
+        effectivePaid = paymentMode === 'cash' ? grandTotal : 0;
+      } else {
+        effectivePaid = Number(billPaidAmount) || 0;
+      }
+      const balanceDue = Math.max(0, grandTotal - effectivePaid);
+
+      container.innerHTML = `
+        <!-- Payment Mode Toggle (Nagad vs Udhar) -->
+        <div class="grid grid-cols-2 gap-2 bg-white p-1.5 rounded-2xl border border-slate-200 shadow-xs">
+          <button 
+            type="button" 
+            onclick="setPaymentMode('cash')"
+            class="py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${paymentMode === 'cash' ? 'bg-agri-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}"
+          >
+            <span>💵</span>
+            <span>नकद बिल (Cash Mode)</span>
+          </button>
+          <button 
+            type="button" 
+            onclick="setPaymentMode('credit')"
+            class="py-2.5 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${paymentMode === 'credit' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}"
+          >
+            <span>💳</span>
+            <span>उधार बिल (Credit Mode)</span>
+          </button>
+        </div>
+
+        <!-- In-Billing Live Product Search Bar -->
+        <div id="billing-search-container" class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs relative">
+          <div class="flex justify-between items-center mb-1.5">
+            <span class="text-[11px] font-extrabold text-slate-700 flex items-center gap-1">
+              <span>🔍</span> बिल में दवा खोजकर सीधे जोड़ें:
+            </span>
+            <span class="text-[10px] font-bold ${paymentMode === 'cash' ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-rose-700 bg-rose-50 border border-rose-200'} px-2 py-0.5 rounded-md">
+              ${paymentMode === 'cash' ? '🟢 नकद दर लागू' : '🔴 उधार दर लागू'}
+            </span>
+          </div>
+
+          <div class="relative">
+            <input 
+              type="text" 
+              id="billing-search-input"
+              placeholder="दवा या रोग लिखें (उदा. s mite, chess, coragen, illi, bph)..."
+              value="${billingSearchTerm}"
+              onfocus="updateBillingSearchDropdown()"
+              oninput="onBillingSearchInput(this.value)"
+              class="w-full pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-agri-600 bg-slate-50 focus:bg-white text-slate-800"
+            />
+            <span class="absolute left-3 top-2.5 text-slate-400 text-sm">🌾</span>
+            <button 
+              id="billing-search-clear"
+              onclick="clearBillingSearch()" 
+              style="display: ${billingSearchTerm ? 'block' : 'none'};"
+              class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700 font-bold text-xs"
+            >✕</button>
+          </div>
+
+          <!-- Dropdown Results Container -->
+          <div 
+            id="billing-search-dropdown" 
+            class="hidden absolute left-3 right-3 top-full mt-1 bg-white border border-slate-300 rounded-2xl shadow-2xl z-40 max-h-64 overflow-y-auto divide-y divide-slate-100"
+          ></div>
+        </div>
+
+        <!-- Customer Inputs & Auto-Increment Bill Number Indicator -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          <div class="flex justify-between items-center">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">ग्राहक विवरण:</span>
+              <span class="text-[11px] font-mono font-black text-slate-900 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md shadow-2xs">
+                अगला बिल क्र.: #${nextBillNumber}
+              </span>
+              <button 
+                type="button" 
+                onclick="promptChangeBillNumber()" 
+                class="text-[10px] text-indigo-600 hover:underline font-bold"
+                title="बिल नंबर अपनी बिल बुक के अनुसार बदलें"
+              >
+                ✏️ बदलें
+              </button>
+            </div>
+            <span class="text-[10px] text-slate-500 font-bold">दिनांक: ${new Date().toLocaleDateString('hi-IN')}</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <input 
+              type="text" 
+              placeholder="किसान का नाम *"
+              value="${billCustomerName}"
+              oninput="billCustomerName = this.value"
+              class="p-2 border border-slate-200 rounded-xl text-xs font-bold"
+            />
+            <input 
+              type="text" 
+              placeholder="गाँव / पता (उदा. देवरी)"
+              value="${billCustomerVillage}"
+              oninput="billCustomerVillage = this.value"
+              class="p-2 border border-slate-200 rounded-xl text-xs font-semibold"
+            />
+            <input 
+              type="tel" 
+              placeholder="मोबाइल नंबर"
+              value="${billCustomerPhone}"
+              oninput="billCustomerPhone = this.value"
+              class="p-2 border border-slate-200 rounded-xl text-xs font-semibold"
+            />
+          </div>
+        </div>
+
+        <!-- Cart Items List -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          <div class="flex justify-between items-center text-xs">
+            <span class="font-extrabold text-slate-800 flex items-center gap-1.5">
+              <span>🛒</span>
+              <span>बिल में दवाइयाँ (${cart.length} आइटम)</span>
+            </span>
+            ${cart.length > 0 ? `<button onclick="cart=[]; renderScreen();" class="text-rose-600 font-bold text-[11px] hover:underline">सब हटाएं</button>` : ''}
+          </div>
+
+          ${cart.length === 0 ? `
+            <div class="text-center py-8 text-slate-400 text-xs font-semibold bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              <p>बिल में अभी कोई दवा नहीं है।</p>
+              <p class="text-[10px] text-slate-500 mt-0.5">ऊपर सर्च बार में दवा का नाम लिखकर तुरंत जोड़ें।</p>
+            </div>
+          ` : `
+            <div class="divide-y divide-slate-100 text-xs">
+              ${cart.map((item, idx) => `
+                <div class="py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
+                  <div class="flex-1 min-w-[140px]">
+                    <h4 class="font-bold text-slate-900 text-xs leading-tight">${item.brandName}</h4>
+                    <span class="text-[10px] text-slate-400">भरती: ${item.pack} | बैच: ${item.batch || 'SMT10'} (अव.: ${item.expiry || '08/28'})</span>
+                  </div>
+
+                  <!-- Quantity with Quick [-] and [+] Buttons -->
+                  <div class="flex items-center">
+                    <span class="text-[9px] text-slate-400 mr-1 hidden sm:inline">मात्रा:</span>
+                    <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
+                      <button 
+                        type="button" 
+                        onclick="updateCartItemQty(${idx}, ${item.qty - 1})"
+                        class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition"
+                      >-</button>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        value="${item.qty}"
+                        onchange="updateCartItemQty(${idx}, Number(this.value)||1)"
+                        class="w-10 p-1 text-center font-extrabold border-x border-slate-200 text-xs bg-white focus:outline-none"
+                      />
+                      <button 
+                        type="button" 
+                        onclick="updateCartItemQty(${idx}, ${item.qty + 1})"
+                        class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition"
+                      >+</button>
+                    </div>
+                  </div>
+
+                  <!-- Editable Rate Field -->
+                  <div class="w-16">
+                    <span class="text-[9px] text-slate-400 block text-center">दर (₹)</span>
+                    <input 
+                      type="number" 
+                      value="${item.sellingPrice}"
+                      onchange="updateCartItemPrice(${idx}, Number(this.value)||0)"
+                      class="w-full p-1 text-center font-bold border border-slate-200 rounded-lg text-xs bg-amber-50 focus:bg-white text-slate-800"
+                    />
+                  </div>
+
+                  <!-- Line Total -->
+                  <div class="w-16 text-right font-extrabold text-slate-900 text-xs font-mono">
+                    ₹${(item.qty * item.sellingPrice).toFixed(0)}
+                  </div>
+
+                  <!-- Remove Item -->
+                  <button onclick="cart.splice(${idx}, 1); renderScreen();" class="text-slate-400 hover:text-rose-600 p-1 font-bold text-sm">✕</button>
+                </div>
+              `).join('')}
+            </div>
+          `}
+        </div>
+
+        <!-- Billing Summary & Live Recalculations -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-1.5 text-xs">
+          <div class="flex justify-between text-slate-600 font-semibold">
+            <span>उप-योग (Subtotal):</span>
+            <span class="font-bold text-slate-900 font-mono">₹${subtotal}</span>
+          </div>
+
+          <div class="flex justify-between items-center text-slate-600">
+            <span>छूट (Discount ₹):</span>
+            <input 
+              type="number" 
+              value="${billDiscount}" 
+              oninput="billDiscount = Number(this.value)||0; renderBillingScreen(document.getElementById('main-content'));"
+              class="w-20 p-1 text-right font-bold border border-slate-200 rounded-lg text-xs"
+            />
+          </div>
+
+          <div class="flex justify-between text-sm font-black text-slate-900 pt-1 border-t border-slate-100">
+            <span>कुल रकम (Grand Total):</span>
+            <span class="text-agri-700 font-mono text-base">₹${grandTotal}</span>
+          </div>
+
+          <div class="flex justify-between items-center pt-1">
+            <span class="font-bold text-slate-700">जमा राशि (Paid Amount):</span>
+            <input 
+              type="number" 
+              placeholder="${paymentMode === 'cash' ? grandTotal : '0'}" 
+              value="${billPaidAmount}" 
+              oninput="billPaidAmount = this.value; renderBillingScreen(document.getElementById('main-content'));"
+              class="w-28 p-1.5 text-right font-black border border-slate-200 rounded-lg text-xs bg-emerald-50 text-emerald-900 font-mono"
+            />
+          </div>
+
+          <div class="flex justify-between font-black text-xs text-rose-600 pt-1.5 border-t border-slate-100">
+            <span>शेष उधार रकम (Balance Due):</span>
+            <span class="font-mono text-sm">₹${balanceDue}</span>
+          </div>
+        </div>
+
+        <!-- Finalize Bill Button -->
+        <button 
+          onclick="finalizeBill()"
+          ${cart.length === 0 ? 'disabled' : ''}
+          class="w-full bg-agri-700 hover:bg-agri-800 disabled:opacity-40 text-white font-black py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
+        >
+          🖨️ प्रमाणित बिल सेव करें एवं पर्ची प्रिंट देखें
+        </button>
+      `;
+
+      if (billingSearchTerm) {
+        updateBillingSearchDropdown();
+      }
+    }
+
+    function onBillingSearchInput(val) {
+      billingSearchTerm = val;
+      updateBillingSearchDropdown();
+    }
+
+    function clearBillingSearch() {
+      billingSearchTerm = '';
+      const input = document.getElementById('billing-search-input');
+      if (input) input.value = '';
+      updateBillingSearchDropdown();
+    }
+
+    function updateBillingSearchDropdown() {
+      const dropdown = document.getElementById('billing-search-dropdown');
+      const clearBtn = document.getElementById('billing-search-clear');
+      if (!dropdown) return;
+
+      const q = (billingSearchTerm || '').trim().toLowerCase();
+      if (clearBtn) {
+        clearBtn.style.display = q ? 'block' : 'none';
+      }
+
+      if (!q) {
+        dropdown.innerHTML = '';
+        dropdown.classList.add('hidden');
+        return;
+      }
+
+      const searchMatches = products.filter(p => 
+        p.brandName.toLowerCase().includes(q) ||
+        p.technical.toLowerCase().includes(q) ||
+        (p.targets && p.targets.some(t => t.toLowerCase().includes(q))) ||
+        (p.keywords && p.keywords.some(k => k.toLowerCase().includes(q)))
+      ).slice(0, 6);
+
+      if (searchMatches.length === 0) {
+        dropdown.innerHTML = `
+          <div class="p-3.5 text-center text-xs text-slate-500 font-semibold bg-slate-50">
+            '${q}' नाम से कोई दवा या रोग नहीं मिला।
+          </div>
+        `;
+        dropdown.classList.remove('hidden');
+        return;
+      }
+
+      dropdown.innerHTML = searchMatches.map(prod => `
+        <div class="p-2.5 hover:bg-emerald-50/80 transition-colors border-b border-slate-100 last:border-b-0">
+          <div class="flex justify-between items-start">
+            <div>
+              <h4 class="font-bold text-slate-900 text-xs leading-tight">${prod.brandName}</h4>
+              <p class="text-[10px] text-slate-500">${prod.technical}</p>
+              <div class="text-[9.5px] text-emerald-700 font-semibold mt-0.5">
+                🎯 ${prod.targets.join(', ')}
+              </div>
+            </div>
+            <span class="text-[9px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded">${prod.company}</span>
+          </div>
+
+          <!-- Quick Add Buttons for pack sizes -->
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            ${prod.variants.map((v, vIdx) => {
+              const rate = paymentMode === 'cash' ? v.cashPrice : v.creditPrice;
+              return `
+                <button 
+                  type="button" 
+                  onmousedown="event.preventDefault();"
+                  onclick="addVariantToCartFromBilling('${prod.id}', ${vIdx})"
+                  class="bg-emerald-50 hover:bg-agri-600 hover:text-white text-agri-800 border border-emerald-300 rounded-lg px-2.5 py-1 text-[10.5px] font-bold transition flex items-center gap-1 shadow-2xs"
+                >
+                  <span>+ ${v.size} ${v.unit}</span>
+                  <span class="font-mono">₹${rate}</span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      dropdown.classList.remove('hidden');
+    }
+
+    function addVariantToCartFromBilling(pId, vIdx) {
+      const prod = products.find(p => p.id === pId);
+      if (!prod) return;
+      const v = prod.variants[vIdx] || prod.variants[0];
+      const rate = paymentMode === 'cash' ? v.cashPrice : v.creditPrice;
+      const packName = `${v.size} ${v.unit}`;
+
+      const existing = cart.find(i => i.productId === pId && i.pack === packName);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({
+          productId: pId,
+          brandName: prod.brandName,
+          technical: prod.technical,
+          pack: packName,
+          batch: v.batch,
+          expiry: v.expiry,
+          cashPrice: v.cashPrice,
+          creditPrice: v.creditPrice,
+          sellingPrice: rate,
+          qty: 1
+        });
+      }
+
+      billingSearchTerm = '';
+      renderScreen();
+    }
+
+    function updateCartItemQty(index, newQty) {
+      if (newQty <= 0) {
+        cart.splice(index, 1);
+      } else {
+        cart[index].qty = newQty;
+      }
+      renderScreen();
+    }
+
+    function updateCartItemPrice(index, newPrice) {
+      cart[index].sellingPrice = Math.max(0, newPrice);
+      renderScreen();
+    }
+
+    function setPaymentMode(mode) {
+      paymentMode = mode;
+      cart.forEach(item => {
+        item.sellingPrice = mode === 'cash' ? item.cashPrice : item.creditPrice;
+      });
+      renderScreen();
+    }
+
+    function numberToHindiWords(num) {
+      if (num === 0) return 'शून्य';
+      return num + ' रुपये मात्र';
+    }
+
+    async function finalizeBill() {
+      if (!billCustomerName.trim()) {
+        alert('कृपया किसान / ग्राहक का नाम लिखें!');
+        return;
+      }
+      if (cart.length === 0) {
+        alert('बिल में कम से कम 1 दवा जोड़ें!');
+        return;
+      }
+
+      const subtotal = cart.reduce((acc, cur) => acc + (cur.qty * cur.sellingPrice), 0);
+      const grandTotal = Math.max(0, subtotal - Number(billDiscount || 0));
+      const effectivePaid = billPaidAmount === '' ? (paymentMode === 'cash' ? grandTotal : 0) : Number(billPaidAmount) || 0;
+      const balanceDue = Math.max(0, grandTotal - effectivePaid);
+
+      // Using persistent sequential nextBillNumber
+      const assignedBillNumber = String(nextBillNumber);
+
+      const bill = {
+        id: 'BILL-' + Date.now(),
+        billNumber: assignedBillNumber,
+        date: new Date().toISOString().split('T')[0],
+        customerName: billCustomerName,
+        customerVillage: billCustomerVillage || 'देवरी',
+        customerPhone: billCustomerPhone || '70891-01502',
+        paymentMode: paymentMode,
+        items: [...cart],
+        subtotal: subtotal,
+        discount: Number(billDiscount) || 0,
+        grandTotal: grandTotal,
+        paidAmount: effectivePaid,
+        balanceDue: balanceDue,
+        totalQty: cart.reduce((acc, c) => acc + c.qty, 0),
+        inWords: numberToHindiWords(grandTotal)
+      };
+
+      billsHistory.unshift(bill);
+      localStorage.setItem('jk_bills', JSON.stringify(billsHistory));
+
+      // Auto-Increment & Save for Next Bill
+      nextBillNumber += 1;
+      localStorage.setItem('jk_next_bill_no', nextBillNumber);
+
+      currentActiveBill = bill;
+      openInvoiceModal(bill);
+      renderScreen();
+    }
+
+    function openInvoiceModal(bill) {
+      currentActiveBill = bill;
+      const modal = document.getElementById('invoice-modal');
+      const area = document.getElementById('print-invoice-area');
+      modal.classList.remove('hidden');
+
+      area.innerHTML = `
+        <div style="border: 1.5px solid #1e293b; padding: 12px; border-radius: 4px; font-family: 'Mukta', sans-serif;">
+          
+          <!-- Top Legal Headers -->
+          <div style="display: flex; justify-content: space-between; font-size: 10px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; font-weight: 600; color: #334155;">
+            <div>
+              <span>GSTIN: <b>22FTUPS0621B1ZU</b></span> | 
+              <span>Pes.L.No.: <b>RYP/1315</b></span> | 
+              <span>Fer.L.No.: <b>DMT/1101</b></span>
+            </div>
+            <div>धमतरी न्यायालय के अंतर्गत</div>
+          </div>
+
+          <!-- Shop Title -->
+          <div style="text-align: center; margin: 4px 0 6px 0;">
+            <div style="display: inline-block; border: 1px solid #0f172a; padding: 1px 10px; font-size: 11px; font-weight: 800; border-radius: 3px;">
+              ${bill.paymentMode === 'cash' ? '॥ केश मेमो / CASH MEMO ॥' : '॥ उधार मेमो / CREDIT MEMO ॥'}
+            </div>
+            <h2 style="font-size: 22px; font-weight: 900; color: #0f172a; margin: 2px 0;">जीवन कृषि केन्द्र</h2>
+            <div style="font-size: 11px; font-weight: 700; color: #475569;">रासायनिक खाद, कृषि दवाईयों एवं सीमेंट विक्रेता</div>
+            <div style="font-size: 10.5px; color: #334155;">ग्राम - देवरी, जिला - धमतरी (छ.ग.) | मो: <b>70891-01502</b></div>
+          </div>
+
+          <!-- Farmer Details Grid -->
+          <div style="display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #94a3b8; padding: 6px 8px; margin: 6px 0; border-radius: 3px; font-size: 11.5px;">
+            <div>
+              <div>क्र. (Bill No.): <b>#${bill.billNumber}</b></div>
+              <div>नाम श्री: <b>${bill.customerName}</b></div>
+              <div>(गांव: <b>${bill.customerVillage}</b>)</div>
+            </div>
+            <div style="text-align: right;">
+              <div>दि.: <b>${bill.date}</b></div>
+              <div>भुगतान: <b>${bill.paymentMode === 'cash' ? 'नकद (CASH)' : 'उधार (CREDIT)'}</b></div>
+              <div>मो.: <b>${bill.customerPhone}</b></div>
+            </div>
+          </div>
+
+          <!-- Items Table -->
+          <table style="width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 11px;">
+            <thead>
+              <tr style="background: #f1f5f9;">
+                <th style="border: 1px solid #64748b; padding: 4px; text-align: center; width: 6%;">क्र.</th>
+                <th style="border: 1px solid #64748b; padding: 4px; text-align: left; width: 36%;">विवरण (Description)</th>
+                <th style="border: 1px solid #64748b; padding: 4px; text-align: center; width: 14%;">बेच नं.</th>
+                <th style="border: 1px solid #64748b; padding: 4px; text-align: center; width: 12%;">अव. तिथि</th>
+                <th style="border: 1px solid #64748b; padding: 4px; text-align: center; width: 10%;">भरती</th>
+                <th style="border: 1px solid #64748b; padding: 4px; text-align: center; width: 8%;">मात्रा</th>
+                <th style="border: 1px solid #64748b; padding: 4px; text-align: right; width: 12%;">दर (₹)</th>
+                <th style="border: 1px solid #64748b; padding: 4px; text-align: right; width: 14%;">रकम (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${bill.items.map((it, i) => `
+                <tr>
+                  <td style="border: 1px solid #64748b; padding: 4px; text-align: center; font-weight: bold;">${i + 1}</td>
+                  <td style="border: 1px solid #64748b; padding: 4px;">
+                    <div style="font-weight: 800; color: #0f172a;">${it.brandName}</div>
+                    <div style="font-size: 9.5px; color: #64748b;">${it.technical || ''}</div>
+                  </td>
+                  <td style="border: 1px solid #64748b; padding: 4px; text-align: center; font-weight: bold;">${it.batch || 'SMT10'}</td>
+                  <td style="border: 1px solid #64748b; padding: 4px; text-align: center;">${it.expiry || '08/28'}</td>
+                  <td style="border: 1px solid #64748b; padding: 4px; text-align: center;">${it.pack}</td>
+                  <td style="border: 1px solid #64748b; padding: 4px; text-align: center; font-weight: bold;">${it.qty}</td>
+                  <td style="border: 1px solid #64748b; padding: 4px; text-align: right;">${Number(it.sellingPrice).toFixed(2)}</td>
+                  <td style="border: 1px solid #64748b; padding: 4px; text-align: right; font-weight: bold;">${(it.qty * it.sellingPrice).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <!-- Total & Words Block -->
+          <div style="border: 1px solid #64748b; border-top: none; padding: 6px 8px; background: #f8fafc; display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
+            <div>
+              <div>अक्षरों में: <b>${bill.inWords}</b></div>
+              <div style="font-size: 10px; color: #64748b;">योग (Total Qty): <b>${bill.totalQty}</b></div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-weight: 600;">कुल रकम: </span>
+              <span style="font-size: 15px; font-weight: 900; color: #0f172a;">₹${Number(bill.grandTotal).toFixed(2)}</span>
+            </div>
+          </div>
+
+          ${bill.paymentMode === 'credit' || bill.balanceDue > 0 ? `
+            <div style="border: 1px solid #64748b; border-top: none; padding: 4px 8px; background: #fff1f2; display: flex; justify-content: space-between; font-size: 11px; color: #be123c;">
+              <span>जमा राशि: <b>₹${Number(bill.paidAmount).toFixed(2)}</b></span>
+              <span>शेष उधारी (Balance Due): <b>₹${Number(bill.balanceDue).toFixed(2)}</b></span>
+            </div>
+          ` : ''}
+
+          <!-- Terms & Statutory Notes -->
+          <div style="margin-top: 8px; font-size: 9.5px; color: #475569; line-height: 1.35; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;">
+            <div><b>नोट:</b> 1. बिका हुआ माल वापस नहीं होगा। 2. भूल चूक लेना देना।</div>
+            <div>3. कीटनाशक दवाईयों कृषि कार्य हेतु हैं, उसके गलत उपयोग की जिम्मेदारी हमारी नहीं होगी।</div>
+            <div>4. एक माह के अंदर रकम नहीं पटाने पर ब्याज लगेगा।</div>
+          </div>
+
+          <!-- Signatures -->
+          <div style="display: flex; justify-content: space-between; margin-top: 24px; padding: 0 8px; font-size: 11px; font-weight: 700;">
+            <div>हस्ताक्षर क्रेता (किसान)</div>
+            <div style="text-align: right;">
+              <div>हस्ताक्षर विक्रेता</div>
+              <div style="font-size: 9px; font-weight: normal; color: #64748b;">(जीवन कृषि केन्द्र)</div>
+            </div>
+          </div>
+
+        </div>
+      `;
+    }
+
+    function closeInvoiceModal() {
+      document.getElementById('invoice-modal').classList.add('hidden');
+    }
+
+    function printBill() {
+      if (!currentActiveBill) {
+        alert('कोई बिल लोड नहीं है!');
+        return;
+      }
+      try {
+        window.print();
+      } catch (e) {
+        alert('प्रिंटर डायलॉग खोलने में समस्या आई: ' + e.message);
+      }
+    }
+
+    function shareOnWhatsApp() {
+      if (!currentActiveBill) {
+        alert('कृपया पहले कोई बिल चुनें या बनाएं!');
+        return;
+      }
+      const b = currentActiveBill;
+      
+      const itemsList = (b.items || []).map((it, idx) => {
+        return `${idx + 1}. *${it.brandName}* (${it.pack || ''})\n   बैच: ${it.batch || '-'} | मात्रा: ${it.qty} x ₹${it.sellingPrice} = *₹${(it.qty * it.sellingPrice).toFixed(0)}*`;
+      }).join('\n');
+
+      const text = 
+`*॥ जीवन कृषि केन्द्र ॥*
+रासायनिक खाद, उन्नत बीज व कृषि दवाईयां
+ग्राम - देवरी, जिला - धमतरी (छ.ग.)
+GSTIN: 22FTUPS0621B1ZU | मो.: 70891-01502
+--------------------------------
+*प्रमाणित केश मेमो (Cash Memo)*
+*बिल क्र.:* #${b.billNumber}
+*दिनांक:* ${b.date}
+*किसान का नाम:* ${b.customerName}
+*गाँव / पता:* ${b.customerVillage || 'देवरी'}
+*भुगतान प्रकार:* ${b.paymentMode === 'cash' ? 'नकद (CASH)' : 'उधार (CREDIT)'}
+--------------------------------
+*खरीदी गई दवाईयाँ:*
+${itemsList}
+--------------------------------
+*उप-योग (Subtotal):* ₹${b.subtotal}
+${b.discount > 0 ? `*छूट (Discount):* -₹${b.discount}\n` : ''}*कुल देय रकम (Grand Total):* *₹${b.grandTotal}*
+*जमा राशि (Paid):* ₹${b.paidAmount}
+${b.balanceDue > 0 ? `*शेष उधारी (Balance Due):* *₹${b.balanceDue}* ⚠️\n` : ''}अक्षरों में: ${b.inWords || (b.grandTotal + ' रुपये मात्र')}
+--------------------------------
+_नोट: 1. बिका हुआ माल वापस नहीं होगा। 2. कीटनाशक दवाईयां कृषि कार्य हेतु हैं।_
+*धन्यवाद! जीवन कृषि केन्द्र, देवरी*`;
+
+      const cleanPhone = (b.customerPhone || '').replace(/[^0-9]/g, '');
+      let waUrl;
+      if (cleanPhone.length === 10) {
+        waUrl = `https://api.whatsapp.com/send?phone=91${cleanPhone}&text=${encodeURIComponent(text)}`;
+      } else if (cleanPhone.length === 12 && cleanPhone.startsWith('91')) {
+        waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`;
+      } else {
+        waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+      }
+
+      window.open(waUrl, '_blank');
+    }
+
+    // SCREEN 2: Search Screen
+    function renderSearchScreen(container) {
+      const filtered = products.filter(p => {
+        const q = searchQuery.trim().toLowerCase();
+        const matchCat = selectedCategory === 'सभी' || p.category.includes(selectedCategory);
+        if (!q) return matchCat;
+        const matchText = p.brandName.toLowerCase().includes(q) ||
+                          p.technical.toLowerCase().includes(q) ||
+                          p.targets.some(t => t.toLowerCase().includes(q)) ||
+                          (p.keywords && p.keywords.some(k => k.toLowerCase().includes(q)));
+        return matchCat && matchText;
+      });
+
+      container.innerHTML = `
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          <div class="relative">
+            <span class="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
+            <input 
+              type="text" 
+              placeholder="रोग, कीट या दवा लिखें (उदा. illi, bph, s mite, chess)..."
+              value="${searchQuery}"
+              oninput="searchQuery = this.value; renderScreen();"
+              class="w-full pl-9 pr-8 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-agri-600 font-bold"
+            />
+            ${searchQuery ? `<button onclick="searchQuery=''; renderScreen();" class="absolute right-3 top-2 text-slate-400 font-bold">✕</button>` : ''}
+          </div>
+
+          <div class="flex gap-1.5 overflow-x-auto pb-0.5 text-xs">
+            ${['सभी', 'कीटनाशक', 'फफूंदनाशक'].map(cat => `
+              <button onclick="selectedCategory='${cat}'; renderScreen();" class="px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-agri-700 text-white' : 'bg-slate-100 text-slate-600'}">
+                ${cat}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          ${filtered.length === 0 ? `
+            <div class="bg-white p-8 text-center rounded-2xl border border-dashed border-slate-300">
+              <p class="text-slate-500 font-bold text-sm">कोई दवा या रोग नहीं मिला!</p>
+            </div>
+          ` : filtered.map(p => {
+            const acres = acreState[p.id] || 1.0;
+            const vIdx = selectedVariantState[p.id] || 0;
+            const v = p.variants[vIdx] || p.variants[0];
+            const totalDose = (p.dosePerAcre * acres).toFixed(0);
+            const bottles = Math.ceil(totalDose / v.size);
+            const pumps = Math.ceil(acres * 10);
+            const rate = paymentMode === 'cash' ? v.cashPrice : v.creditPrice;
+
+            return `
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-start">
+                  <div>
+                    <div class="flex gap-1 mb-1">
+                      <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${p.crops.join(', ')}</span>
+                      <span class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">${p.iracFrac}</span>
+                    </div>
+                    <h3 class="font-black text-sm text-slate-900 leading-tight">${p.brandName}</h3>
+                    <p class="text-[11px] text-slate-500 font-semibold">${p.technical}</p>
+                  </div>
+                  <span class="text-[9.5px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded">${p.company}</span>
+                </div>
+
+                <div class="p-3 space-y-2.5">
+                  <div class="grid grid-cols-2 gap-2 bg-emerald-50/60 p-2 rounded-xl border border-emerald-100 text-xs">
+                    <div>
+                      <span class="text-[9px] text-emerald-800 block">अनुशंसित एकड़ डोज़</span>
+                      <span class="font-extrabold text-slate-900 text-xs">${p.dosePerAcre} ${p.doseUnit}</span>
+                      <span class="text-[9px] text-emerald-700 block">पानी: ${p.waterPerAcre} L/एकड़</span>
+                    </div>
+                    <div class="border-l border-emerald-200 pl-2">
+                      <span class="text-[9px] text-emerald-800 block">15L पंप डोज़</span>
+                      <span class="font-extrabold text-slate-900 text-xs">${p.pumpDose15L}</span>
+                      <span class="text-[9px] text-emerald-700 block">~10 पंप/एकड़</span>
+                    </div>
+                  </div>
+
+                  <!-- Acre Dose Calculator -->
+                  <div class="bg-slate-900 text-white rounded-xl p-2.5 space-y-1.5">
+                    <div class="flex justify-between items-center text-xs">
+                      <span class="font-bold text-slate-200">एकड़ डोज़ कैलकुलेटर:</span>
+                      <div class="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                        <button onclick="acreState['${p.id}'] = Math.max(0.5, (acreState['${p.id}']||1) - 0.5); renderScreen();" class="px-2 py-0.5 font-bold hover:bg-slate-700 rounded">-</button>
+                        <span class="px-2 font-bold text-emerald-300 text-xs">${acres} एकड़</span>
+                        <button onclick="acreState['${p.id}'] = (acreState['${p.id}']||1) + 0.5; renderScreen();" class="px-2 py-0.5 font-bold hover:bg-slate-700 rounded">+</button>
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1 text-center text-xs pt-1 border-t border-slate-800">
+                      <div class="bg-slate-800/80 p-1 rounded">
+                        <span class="text-[9px] text-slate-400 block">कुल दवा</span>
+                        <span class="font-bold text-emerald-400 text-xs">${totalDose} ${p.doseUnit}</span>
+                      </div>
+                      <div class="bg-slate-800/80 p-1 rounded">
+                        <span class="text-[9px] text-slate-400 block">बोतलें</span>
+                        <span class="font-bold text-emerald-400 text-xs">${bottles} पैक</span>
+                      </div>
+                      <div class="bg-slate-800/80 p-1 rounded">
+                        <span class="text-[9px] text-slate-400 block">पंप (15L)</span>
+                        <span class="font-bold text-emerald-400 text-xs">${pumps} पंप</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    onclick="addToCartFromSearch('${p.id}', ${vIdx}, ${bottles})"
+                    class="w-full bg-agri-600 hover:bg-agri-700 text-white font-extrabold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <span>🛒</span> बिल में जोड़ें (₹${rate * bottles})
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function addToCartFromSearch(pId, vIdx, qty) {
+      const prod = products.find(p => p.id === pId);
+      if (!prod) return;
+      const v = prod.variants[vIdx] || prod.variants[0];
+      const rate = paymentMode === 'cash' ? v.cashPrice : v.creditPrice;
+      const existing = cart.find(i => i.productId === pId && i.pack === `${v.size} ${v.unit}`);
+
+      if (existing) {
+        existing.qty += qty;
+      } else {
+        cart.push({
+          productId: pId,
+          brandName: prod.brandName,
+          technical: prod.technical,
+          pack: `${v.size} ${v.unit}`,
+          batch: v.batch,
+          expiry: v.expiry,
+          cashPrice: v.cashPrice,
+          creditPrice: v.creditPrice,
+          sellingPrice: rate,
+          qty: qty
+        });
+      }
+      switchTab('billing');
+    }
+
+    // SCREEN 3: Crop Stage Guide
+    function renderStageGuideScreen(container) {
+      container.innerHTML = `
+        <div class="bg-gradient-to-r from-amber-600 to-amber-700 text-white p-3 rounded-2xl shadow-sm space-y-1.5 text-xs">
+          <div class="flex items-center gap-1.5 font-black text-xs">
+            <span>🧪</span> अनिवार्य टैंक मिक्स घोल क्रम (Tank Mix Protocol)
+          </div>
+          <div class="bg-amber-900/60 p-2 rounded-xl border border-amber-500/40 text-[11px] font-mono leading-relaxed">
+            WDG/WP (पाउडर) ➔ SC/F (सस्पेंशन) ➔ EC (इमल्शन) ➔ SL (तरल घोल) ➔ Adjuvant (स्प्रेडर)
+          </div>
+        </div>
+
+        <div class="space-y-3 pt-2">
+          ${cropStages.map((st, idx) => {
+            return `
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                <div class="p-3 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">${st.stageBadge}</span>
+                    <h3 class="font-extrabold text-xs text-slate-900">${st.stageName}</h3>
+                  </div>
+                  <span class="text-[10px] text-slate-400 font-bold">#${idx + 1}</span>
+                </div>
+
+                <div class="p-3 space-y-2 text-xs">
+                  <div>
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">खेत में क्या देखें (अवलोकन):</span>
+                    <p class="text-slate-800 font-semibold mt-0.5 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                      ${st.observation}
+                    </p>
+                  </div>
+                  <div>
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">कीट / रोग:</span>
+                    <span class="inline-block font-extrabold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200/60 mt-0.5">
+                      ⚠️ ${st.targetPest}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // SCREEN 4: CRUD Screen
+    function renderCrudScreen(container) {
+      const editItem = crudEditId ? products.find(p => p.id === crudEditId) : null;
+      const editVariant = editItem ? (editItem.variants && editItem.variants[0] ? editItem.variants[0] : {}) : {};
+
+      const filteredCrudProducts = products.filter(p => {
+        if (!crudSearchTerm.trim()) return true;
+        const q = crudSearchTerm.toLowerCase().trim();
+        return p.brandName.toLowerCase().includes(q) ||
+               p.technical.toLowerCase().includes(q) ||
+               (p.variants && p.variants.some(v => (v.batch && v.batch.toLowerCase().includes(q))));
+      });
+
+      container.innerHTML = `
+        <!-- Top Action Bar for Bulk & Single Add -->
+        <div class="flex items-center justify-between gap-2 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+          <div>
+            <h3 class="font-extrabold text-sm text-slate-800 flex items-center gap-1.5">
+              <span>📦</span>
+              <span>${editItem ? 'उत्पाद विवरण संपादित करें (Edit)' : 'उत्पाद एवं स्टॉक प्रबंधन'}</span>
+            </h3>
+            <p class="text-[10px] text-slate-500 mt-0.5">नकद/उधार दर, बैच नंबर, एक्सपायरी व बल्क अपलोड</p>
+          </div>
+          <button 
+            type="button" 
+            onclick="openBulkImportModal()"
+            class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-black flex items-center gap-1.5 transition"
+          >
+            <span>📋</span> बल्क में जोड़ें (Bulk Add)
+          </button>
+        </div>
+
+        <!-- Add / Edit Single Product Form -->
+        <form onsubmit="handleSaveProduct(event)" class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-2.5 text-xs">
+          <div class="flex justify-between items-center pb-1 border-b border-slate-100">
+            <span class="font-black text-xs ${editItem ? 'text-amber-700' : 'text-slate-700'}">
+              ${editItem ? '✏️ संपादन मोड: ' + editItem.brandName : '➕ नया उत्पाद जोड़ें (Add Single Product)'}
+            </span>
+            ${editItem ? `
+              <button 
+                type="button" 
+                onclick="cancelEditProduct()"
+                class="text-[11px] text-rose-600 hover:underline font-bold"
+              >✕ संपादन रद्द करें</button>
+            ` : ''}
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">दवा / ब्रांड नाम *</label>
+              <input 
+                type="text" 
+                id="crud-name" 
+                required 
+                placeholder="उदा. कोराजन (Coragen)" 
+                value="${editItem ? editItem.brandName : ''}"
+                class="w-full p-2 border border-slate-200 rounded-xl font-bold text-slate-900 bg-slate-50 focus:bg-white" 
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">टेक्निकल नाम *</label>
+              <input 
+                type="text" 
+                id="crud-tech" 
+                required 
+                placeholder="उदा. Chlorantraniliprole 18.5% SC" 
+                value="${editItem ? editItem.technical : ''}"
+                class="w-full p-2 border border-slate-200 rounded-xl font-semibold text-slate-800 bg-slate-50 focus:bg-white" 
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">कंपनी</label>
+              <input 
+                type="text" 
+                id="crud-company" 
+                placeholder="उदा. FMC / Syngenta" 
+                value="${editItem ? editItem.company : 'जीवन कृषि स्पेशल'}"
+                class="w-full p-2 border border-slate-200 rounded-xl font-semibold" 
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">श्रेणी (Category)</label>
+              <select id="crud-category" class="w-full p-2 border border-slate-200 rounded-xl font-bold bg-white">
+                <option value="कीटनाशक" ${editItem && editItem.category.includes('कीटनाशक') ? 'selected' : ''}>कीटनाशक</option>
+                <option value="फफूंदनाशक" ${editItem && editItem.category.includes('फफूंदनाशक') ? 'selected' : ''}>फफूंदनाशक</option>
+                <option value="खरपतवारनाशक" ${editItem && editItem.category.includes('खरपतवारनाशक') ? 'selected' : ''}>खरपतवारनाशक</option>
+                <option value="टॉनिक / PGR" ${editItem && editItem.category.includes('टॉनिक') ? 'selected' : ''}>टॉनिक / PGR</option>
+                <option value="खाद / उर्वरक" ${editItem && editItem.category.includes('खाद') ? 'selected' : ''}>खाद / उर्वरक</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">पैक साइज़</label>
+              <div class="flex gap-1">
+                <input 
+                  type="number" 
+                  id="crud-pack-size" 
+                  placeholder="60" 
+                  value="${editVariant.size || 60}"
+                  class="w-full p-2 border border-slate-200 rounded-xl font-bold text-center" 
+                />
+                <select id="crud-pack-unit" class="p-2 border border-slate-200 rounded-xl font-bold bg-white text-xs">
+                  <option value="ml" ${editVariant.unit === 'ml' ? 'selected' : ''}>ml</option>
+                  <option value="g" ${editVariant.unit === 'g' ? 'selected' : ''}>g</option>
+                  <option value="kg" ${editVariant.unit === 'kg' ? 'selected' : ''}>kg</option>
+                  <option value="L" ${editVariant.unit === 'L' ? 'selected' : ''}>L</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">स्टॉक (मात्रा)</label>
+              <input 
+                type="number" 
+                id="crud-stock" 
+                placeholder="स्टॉक संख्या" 
+                value="${editVariant.stock !== undefined ? editVariant.stock : 50}"
+                class="w-full p-2 border border-slate-200 rounded-xl font-bold text-center" 
+              />
+            </div>
+          </div>
+
+          <!-- Batch No, Expiry, Cash & Credit Pricing Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
+            <div>
+              <label class="block text-[10px] font-black text-slate-600 mb-0.5">🏷️ बैच नं. (Batch No.) *</label>
+              <input 
+                type="text" 
+                id="crud-batch" 
+                required 
+                placeholder="उदा. SMT10" 
+                value="${editVariant.batch || 'BT' + Math.floor(10 + Math.random()*90)}"
+                class="w-full p-2 border border-slate-300 rounded-xl font-mono font-black text-slate-900 bg-white" 
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-black text-slate-600 mb-0.5">📅 अव. तिथि / एक्सपायरी *</label>
+              <input 
+                type="text" 
+                id="crud-expiry" 
+                required 
+                placeholder="उदा. 08/28 या MM/YY" 
+                value="${editVariant.expiry || '12/28'}"
+                class="w-full p-2 border border-slate-300 rounded-xl font-mono font-black text-slate-900 bg-white" 
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-black text-emerald-800 mb-0.5">💵 नकद दर ₹ (Cash Rate) *</label>
+              <input 
+                type="number" 
+                id="crud-cash" 
+                required 
+                placeholder="नकद रेट" 
+                value="${editVariant.cashPrice || 500}"
+                class="w-full p-2 border border-emerald-300 rounded-xl font-mono font-black text-emerald-900 bg-emerald-50 text-center" 
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-black text-rose-800 mb-0.5">📋 उधार दर ₹ (Credit Rate) *</label>
+              <input 
+                type="number" 
+                id="crud-credit" 
+                required 
+                placeholder="उधार रेट" 
+                value="${editVariant.creditPrice || 550}"
+                class="w-full p-2 border border-rose-300 rounded-xl font-mono font-black text-rose-900 bg-rose-50 text-center" 
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">प्रति एकड़ डोज़ (संख्या)</label>
+              <input 
+                type="number" 
+                id="crud-dose" 
+                placeholder="डोज़ प्रति एकड़ (उदा. 60)" 
+                value="${editItem ? editItem.dosePerAcre : 60}"
+                class="w-full p-2 border border-slate-200 rounded-xl font-semibold" 
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 mb-0.5">सर्च कीवर्ड्स (कॉमा लगाकर लिखें)</label>
+              <input 
+                type="text" 
+                id="crud-keywords" 
+                placeholder="उदा. illi, sundi, stem borer, bph, इल्ली" 
+                value="${editItem && editItem.keywords ? editItem.keywords.join(', ') : ''}"
+                class="w-full p-2 border border-slate-200 rounded-xl font-semibold" 
+              />
+            </div>
+          </div>
+
+          <div class="flex gap-2 pt-1">
+            <button 
+              type="submit" 
+              class="flex-1 ${editItem ? 'bg-amber-600 hover:bg-amber-700' : 'bg-agri-700 hover:bg-agri-800'} text-white font-black py-2.5 rounded-xl text-xs shadow-sm transition"
+            >
+              ${editItem ? '💾 परिवर्तन सुरक्षित करें (Update Product)' : '➕ उत्पाद सूची में जोड़ें (Save Product)'}
+            </button>
+            ${editItem ? `
+              <button 
+                type="button" 
+                onclick="cancelEditProduct()"
+                class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
+              >
+                रद्द करें
+              </button>
+            ` : ''}
+          </div>
+        </form>
+
+        <!-- Existing Products Management & Search List -->
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2.5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span class="text-xs font-black text-slate-800">
+              मौजूदा उत्पाद कैटलॉग (${filteredCrudProducts.length}/${products.length})
+            </span>
+            <div class="relative w-full sm:w-64">
+              <input 
+                type="text" 
+                placeholder="कैटलॉग में खोजें (दवा, टेक्निकल या बैच)..."
+                value="${crudSearchTerm}"
+                oninput="crudSearchTerm = this.value; renderCrudScreen(document.getElementById('main-content'));"
+                class="w-full pl-7 pr-3 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-agri-600"
+              />
+              <span class="absolute left-2.5 top-1.5 text-slate-400 text-xs">🔍</span>
+            </div>
+          </div>
+
+          <div class="divide-y divide-slate-100 text-xs max-h-96 overflow-y-auto">
+            ${filteredCrudProducts.length === 0 ? `
+              <div class="p-6 text-center text-slate-400 font-semibold">
+                '${crudSearchTerm}' से मेल खाता कोई उत्पाद नहीं मिला।
+              </div>
+            ` : filteredCrudProducts.map(p => {
+              const v = p.variants && p.variants[0] ? p.variants[0] : { size: 100, unit: 'ml', batch: '-', expiry: '-', cashPrice: 0, creditPrice: 0, stock: 0 };
+              return `
+                <div class="py-2.5 flex flex-wrap sm:flex-nowrap justify-between items-center gap-2 hover:bg-slate-50/80 px-1 rounded-xl transition">
+                  <div class="flex-1 min-w-[200px]">
+                    <div class="flex items-center gap-1.5">
+                      <h4 class="font-extrabold text-slate-900 text-xs leading-tight">${p.brandName}</h4>
+                      <span class="text-[9px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.2 rounded">${p.company || 'सामान्य'}</span>
+                    </div>
+                    <p class="text-[10.5px] text-slate-500 mt-0.5">${p.technical}</p>
+                    <div class="flex flex-wrap items-center gap-2 text-[10px] mt-1 text-slate-600">
+                      <span class="bg-amber-50 text-amber-900 font-mono font-bold px-1.5 py-0.5 rounded border border-amber-200">
+                        बैच: ${v.batch || 'SMT10'}
+                      </span>
+                      <span class="bg-slate-100 text-slate-700 font-mono font-bold px-1.5 py-0.5 rounded">
+                        अव.: ${v.expiry || '08/28'}
+                      </span>
+                      <span class="font-semibold">भरती: ${v.size} ${v.unit}</span>
+                      <span class="font-bold text-emerald-700">नकद: ₹${v.cashPrice}</span>
+                      <span class="font-bold text-rose-700">उधार: ₹${v.creditPrice}</span>
+                      <span class="text-slate-500">स्टॉक: ${v.stock || 0}</span>
+                    </div>
+                  </div>
+
+                  <!-- Edit & Delete Action Buttons -->
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <button 
+                      type="button" 
+                      onclick="startEditProduct('${p.id}')"
+                      class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-lg font-bold text-[11px] transition flex items-center gap-1"
+                    >
+                      <span>✏️</span>
+                      <span>एडिट</span>
+                    </button>
+                    <button 
+                      type="button" 
+                      onclick="deleteProduct('${p.id}')"
+                      class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-bold text-[11px] transition flex items-center gap-1"
+                    >
+                      <span>🗑️</span>
+                      <span>हटाएं</span>
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Bulk Import Modal Popup -->
+        <div id="bulk-modal" class="${showBulkModal ? 'flex' : 'hidden'} fixed inset-0 bg-black/75 backdrop-blur-xs z-50 items-center justify-center p-3 overflow-y-auto">
+          <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden my-4 border border-slate-200 text-xs">
+            <div class="p-3 bg-indigo-900 text-white flex items-center justify-between">
+              <div class="flex items-center gap-2 font-black text-xs">
+                <span>📋</span>
+                <span>बल्क उत्पाद आयात (Bulk Products Import / Paste CSV)</span>
+              </div>
+              <button onclick="closeBulkImportModal()" class="text-slate-300 hover:text-white font-black text-base px-1.5">✕</button>
+            </div>
+
+            <div class="p-4 space-y-3">
+              <div class="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-900 text-[11px] leading-relaxed">
+                <b>आयात नियम:</b> नीचे दिए गए टेक्स्ट बॉक्स में अपनी दवाइयों की सूची कॉमा (,) के साथ एक-एक लाइन में पेस्ट करें। आप एक्सेल (Excel) से भी सीधे कॉलम कॉपी-पेस्ट कर सकते हैं।
+              </div>
+
+              <div>
+                <div class="flex justify-between items-center mb-1">
+                  <span class="font-bold text-slate-700 text-[10.5px]">फॉर्मेट: दवा, टेक्निकल, कंपनी, श्रेणी, पैक, यूनिट, बैच, एक्सपायरी, नकद दर, उधार दर, डोज़, स्टॉक</span>
+                  <button 
+                    type="button" 
+                    onclick="loadBulkSampleData()"
+                    class="text-[10px] text-indigo-700 font-extrabold hover:underline"
+                  >
+                    + सैंपल डाटा भरें
+                  </button>
+                </div>
+                <textarea 
+                  id="bulk-csv-input" 
+                  rows="7" 
+                  placeholder="Coragen, Chlorantraniliprole 18.5% SC, FMC, कीटनाशक, 60, ml, CRG06, 09/28, 850, 900, 60, 40&#10;Chess, Pymetrozine 50% WG, Syngenta, कीटनाशक, 120, g, SYN14, 07/28, 630, 680, 120, 50"
+                  class="w-full p-2.5 border border-slate-300 rounded-xl font-mono text-[11px] focus:ring-2 focus:ring-indigo-600 outline-none bg-slate-50 focus:bg-white"
+                ></textarea>
+              </div>
+
+              <div class="flex gap-2 pt-1">
+                <button 
+                  type="button" 
+                  onclick="processBulkImport()"
+                  class="flex-1 bg-indigo-700 hover:bg-indigo-800 text-white font-black py-2.5 rounded-xl text-xs shadow-md transition"
+                >
+                  🚀 सभी उत्पाद डेटाबेस में जोड़ें
+                </button>
+                <button 
+                  type="button" 
+                  onclick="closeBulkImportModal()"
+                  class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
+                >
+                  रद्द करें
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function startEditProduct(id) {
+      crudEditId = id;
+      renderCrudScreen(document.getElementById('main-content'));
+      const formEl = document.getElementById('crud-name');
+      if (formEl) formEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function cancelEditProduct() {
+      crudEditId = null;
+      renderCrudScreen(document.getElementById('main-content'));
+    }
+
+    function handleSaveProduct(e) {
+      e.preventDefault();
+      const name = document.getElementById('crud-name').value.trim();
+      const tech = document.getElementById('crud-tech').value.trim();
+      const company = document.getElementById('crud-company').value.trim() || 'जीवन कृषि स्पेशल';
+      const category = document.getElementById('crud-category').value;
+      const size = Number(document.getElementById('crud-pack-size').value) || 60;
+      const unit = document.getElementById('crud-pack-unit').value || 'ml';
+      const stock = Number(document.getElementById('crud-stock').value) || 50;
+      const batch = document.getElementById('crud-batch').value.trim() || 'SMT10';
+      const expiry = document.getElementById('crud-expiry').value.trim() || '08/28';
+      const cash = Number(document.getElementById('crud-cash').value) || 500;
+      const credit = Number(document.getElementById('crud-credit').value) || cash;
+      const dose = Number(document.getElementById('crud-dose').value) || size;
+      const keywordsRaw = document.getElementById('crud-keywords').value.trim();
+      const keywords = keywordsRaw ? keywordsRaw.split(',').map(k => k.trim().toLowerCase()) : [name.toLowerCase()];
+
+      const variantData = {
+        size: size,
+        unit: unit,
+        batch: batch,
+        expiry: expiry,
+        cashPrice: cash,
+        creditPrice: credit,
+        acreCoverage: Number((size / (dose || 1)).toFixed(1)) || 1.0,
+        stock: stock
+      };
+
+      if (crudEditId) {
+        const idx = products.findIndex(p => p.id === crudEditId);
+        if (idx !== -1) {
+          products[idx] = {
+            ...products[idx],
+            brandName: name,
+            company: company,
+            technical: tech,
+            category: category,
+            dosePerAcre: dose,
+            doseUnit: unit,
+            pumpDose15L: `${((dose / 200) * 15).toFixed(1)} ${unit}`,
+            keywords: Array.from(new Set([...keywords, name.toLowerCase()])),
+            variants: [variantData, ...(products[idx].variants ? products[idx].variants.slice(1) : [])]
+          };
+          localStorage.setItem('jk_products', JSON.stringify(products));
+          alert(`'${name}' उत्पाद विवरण सफलतापूर्वक अपडेट हो गया!`);
+          crudEditId = null;
+          renderScreen();
+        }
+      } else {
+        const newProd = {
+          id: 'p_' + Date.now(),
+          brandName: name,
+          company: company,
+          technical: tech,
+          iracFrac: "मानक",
+          category: category,
+          crops: ["धान (Paddy)"],
+          targets: ["कीट / रोग नियंत्रण"],
+          dosePerAcre: dose,
+          doseUnit: unit,
+          pumpDose15L: `${((dose / 200) * 15).toFixed(1)} ${unit}`,
+          waterPerAcre: 150,
+          warning: null,
+          remarks: "काउंटर से जोड़ा गया उत्पाद।",
+          keywords: Array.from(new Set([...keywords, name.toLowerCase()])),
+          variants: [variantData]
+        };
+        products.unshift(newProd);
+        localStorage.setItem('jk_products', JSON.stringify(products));
+        alert(`'${name}' उत्पाद सफलतापूर्वक कैटलॉग में जोड़ा गया!`);
+        renderScreen();
+      }
+    }
+
+    function openBulkImportModal() {
+      showBulkModal = true;
+      renderCrudScreen(document.getElementById('main-content'));
+    }
+
+    function closeBulkImportModal() {
+      showBulkModal = false;
+      renderCrudScreen(document.getElementById('main-content'));
+    }
+
+    function loadBulkSampleData() {
+      const sample = 
+`Coragen, Chlorantraniliprole 18.5% SC, FMC, कीटनाशक, 60, ml, CRG07, 10/28, 850, 900, 60, 45
+S Mite, Ethion 50% EC, Sun Life, कीटनाशक, 1, L, SMT12, 11/28, 650, 700, 400, 30
+Chess, Pymetrozine 50% WG, Syngenta, कीटनाशक, 120, g, SYN19, 09/28, 630, 680, 120, 50
+Pulsor, Thifluzamide 24% SC, Insecticides India, फफूंदनाशक, 150, ml, PLS22, 08/28, 780, 840, 150, 25`;
+      const input = document.getElementById('bulk-csv-input');
+      if (input) input.value = sample;
+    }
+
+    function processBulkImport() {
+      const textarea = document.getElementById('bulk-csv-input');
+      if (!textarea || !textarea.value.trim()) {
+        alert('कृपया कम से कम 1 लाइन का उत्पाद डेटा दर्ज करें!');
+        return;
+      }
+
+      const lines = textarea.value.trim().split('\n');
+      let count = 0;
+
+      lines.forEach((line, i) => {
+        const cleanLine = line.trim();
+        if (!cleanLine) return;
+        const cols = cleanLine.includes('\t') ? cleanLine.split('\t') : cleanLine.split(',');
+        if (cols.length >= 2) {
+          const name = cols[0] ? cols[0].trim() : `उत्पाद ${i+1}`;
+          const tech = cols[1] ? cols[1].trim() : 'मानक टेक्निकल';
+          const company = cols[2] ? cols[2].trim() : 'जीवन कृषि';
+          const category = cols[3] ? cols[3].trim() : 'कीटनाशक';
+          const size = Number(cols[4] ? cols[4].trim() : 100) || 100;
+          const unit = cols[5] ? cols[5].trim() : 'ml';
+          const batch = cols[6] ? cols[6].trim() : 'BT' + Math.floor(10 + Math.random()*90);
+          const expiry = cols[7] ? cols[7].trim() : '12/28';
+          const cash = Number(cols[8] ? cols[8].trim() : 500) || 500;
+          const credit = Number(cols[9] ? cols[9].trim() : cash) || cash;
+          const dose = Number(cols[10] ? cols[10].trim() : size) || size;
+          const stock = Number(cols[11] ? cols[11].trim() : 50) || 50;
+
+          const newProd = {
+            id: 'p_bulk_' + Date.now() + '_' + i,
+            brandName: name,
+            company: company,
+            technical: tech,
+            iracFrac: "मानक",
+            category: category,
+            crops: ["धान (Paddy)"],
+            targets: ["कीट / रोग नियंत्रण"],
+            dosePerAcre: dose,
+            doseUnit: unit,
+            pumpDose15L: `${((dose / 200) * 15).toFixed(1)} ${unit}`,
+            waterPerAcre: 150,
+            warning: null,
+            remarks: "बल्क आयात द्वारा जोड़ा गया उत्पाद।",
+            keywords: [name.toLowerCase()],
+            variants: [
+              {
+                size: size,
+                unit: unit,
+                batch: batch,
+                expiry: expiry,
+                cashPrice: cash,
+                creditPrice: credit,
+                acreCoverage: Number((size / (dose || 1)).toFixed(1)) || 1.0,
+                stock: stock
+              }
+            ]
+          };
+
+          products.unshift(newProd);
+          count++;
+        }
+      });
+
+      if (count > 0) {
+        localStorage.setItem('jk_products', JSON.stringify(products));
+        alert(`शानदार! कुल ${count} उत्पाद सफलतापूर्वक बल्क में जुड़ गए!`);
+        showBulkModal = false;
+        renderScreen();
+      } else {
+        alert('कोई वैध उत्पाद पंक्ति नहीं मिली! कृपया फॉर्मेट जांचें।');
+      }
+    }
+
+    function deleteProduct(id) {
+      const p = products.find(prod => prod.id === id);
+      const name = p ? p.brandName : 'यह उत्पाद';
+      if (confirm(`क्या आप '${name}' को दुकान कैटलॉग से स्थायी रूप से हटाना चाहते हैं?`)) {
+        products = products.filter(item => item.id !== id);
+        localStorage.setItem('jk_products', JSON.stringify(products));
+        if (crudEditId === id) crudEditId = null;
+        renderScreen();
+      }
+    }
+
+    // SCREEN 5: Bill History
+    function renderHistoryScreen(container) {
+      container.innerHTML = `
+        <div class="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          <span class="text-xs font-bold text-slate-800">पुराने बिल (${billsHistory.length})</span>
+          ${billsHistory.length === 0 ? `
+            <div class="text-center py-8 text-slate-400 text-xs font-semibold">
+              अभी तक कोई बिल सेव नहीं किया गया है।
+            </div>
+          ` : `
+            <div class="space-y-2 text-xs">
+              ${billsHistory.map(b => `
+                <div class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 flex justify-between items-center">
+                  <div>
+                    <div class="font-extrabold text-slate-900">${b.customerName} (#${b.billNumber})</div>
+                    <div class="text-[10px] text-slate-500">${b.date} • ${b.paymentMode === 'cash' ? 'नकद' : 'उधार'}</div>
+                    <div class="text-[11px] font-bold text-agri-700">कुल: ₹${b.grandTotal} | बाकी: ₹${b.balanceDue}</div>
+                  </div>
+                  <button 
+                    onclick='openInvoiceModal(${JSON.stringify(b)})'
+                    class="px-3 py-1.5 bg-slate-900 hover:bg-black text-white font-bold rounded-lg text-[11px]"
+                  >
+                    रसीद देखें
+                  </button>
+                </div>
+              `).join('')}
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    // Close in-billing dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+      const searchContainer = document.getElementById('billing-search-container');
+      if (searchContainer && !searchContainer.contains(event.target)) {
+        const dropdown = document.getElementById('billing-search-dropdown');
+        if (dropdown) dropdown.classList.add('hidden');
+      }
+    });
+
+    // Startup
+    initSupabase();
+    renderScreen();
+  </script>
+</body>
+</html>
