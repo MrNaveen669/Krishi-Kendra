@@ -1,16 +1,22 @@
 {
   "expo": {
-    "name": "KrishiKendraApp",
+    "name": "जीवन कृषि केन्द्र",
     "slug": "KrishiKendraApp",
-    "version": "1.0.0",
+    "version": "1.3.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7692bf6c-4678-4288-8cae-ee281c2cbeff"
+    },
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/adaptive-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#166534"
     },
     "ios": {
       "supportsTablet": true
@@ -18,12 +24,27 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#166534"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.mrxn.KrishiKendraApp",
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-updates",
+        {
+          "username": "mrxn"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7692bf6c-4678-4288-8cae-ee281c2cbeff"
+      }
     }
   }
 }
