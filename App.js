@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
   Animated,
   BackHandler,
-  Modal
+  Modal,
+  TouchableOpacity
 } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -835,10 +836,10 @@ export default function App() {
     stockDeductionSummary.push(...cementStockUpdates);
 
     const assignedNo = String(nextBillNumber);
+    const paymentTimestamp = effectivePaid > 0 ? nowTimestamp : '';
     const updatedBillObj = {
       id: editingBillId || ('BILL_' + Date.now()),
       billNumber: assignedNo,
-      // Preserves original purchase date
       date: existingBill ? existingBill.date : new Date().toLocaleDateString('hi-IN'),
       customerName: farmerName.trim(),
       customerFatherName: fatherName.trim(),
@@ -851,8 +852,7 @@ export default function App() {
       grandTotal,
       paidAmount: effectivePaid,
       balanceDue,
-      // Records settlement timestamp
-      lastPaymentDate: editingBillId ? nowTimestamp : (effectivePaid > 0 ? nowTimestamp : '')
+      lastPaymentDate: editingBillId ? (effectivePaid > 0 ? nowTimestamp : '') : paymentTimestamp
     };
 
     const nextHistory = editingBillId
@@ -910,6 +910,9 @@ export default function App() {
     if (!bill) return;
     const totalQty = (bill.items || []).reduce((acc, it) => acc + (Number(it.qty) || 0), 0);
     const amountInWords = numberToHindiWords(bill.grandTotal);
+    const isDue = Number(bill.balanceDue || 0) > 0;
+    const paidAmt = Number(bill.paidAmount || 0);
+    const balDue = Number(bill.balanceDue || 0);
 
     const rowsHtml = (bill.items || [])
       .map(
@@ -937,36 +940,106 @@ export default function App() {
           <meta charset="utf-8" />
           <title>जीवन_कृषि_बिल_${bill.billNumber}</title>
           <style>
-            @page { size: A4 portrait; margin: 15mm; }
+            @page { size: A4 portrait; margin: 12mm; }
             body { font-family: 'Helvetica Neue', 'Arial', sans-serif; color: #000; background-color: #fff; margin: 0; padding: 0; }
-            .memo-box { border: 1.5px solid #111; padding: 14px 18px; background-color: #fffdfa; border-radius: 4px; }
-            .top-meta-row { display: flex; justify-content: space-between; align-items: flex-start; font-size: 10.5px; line-height: 1.35; }
-            .center-header { text-align: center; margin-top: -6px; }
-            .memo-type-badge { display: inline-block; font-size: 12px; font-weight: bold; padding: 1px 10px; border: 1px solid #000; border-radius: 3px; margin-bottom: 4px; }
-            .shop-title { font-size: 24px; font-weight: 900; letter-spacing: 0.5px; margin: 2px 0; }
-            .customer-strip { display: flex; justify-content: space-between; border-top: 1px solid #111; border-bottom: 1px solid #111; padding: 6px 2px; margin: 10px 0 12px 0; font-size: 12px; }
+            .memo-box { border: 1.5px solid #111; padding: 14px 18px; background-color: #fffdfa; border-radius: 4px; position: relative; }
+            
+            /* TOP 3-COLUMN HEADER WITH CENTER SHOP TITLE */
+            .header-grid {
+              display: grid;
+              grid-template-columns: 140px 1fr 140px;
+              align-items: center;
+              border-bottom: 1.5px solid #111;
+              padding-bottom: 8px;
+              margin-bottom: 8px;
+            }
+            .left-meta { font-size: 10px; line-height: 1.35; }
+            .center-shop { text-align: center; }
+            .right-badge { text-align: right; }
+            .shop-title { font-size: 26px; font-weight: 900; letter-spacing: 0.5px; margin: 0 0 2px 0; }
+            .shop-sub { font-size: 11px; font-weight: 600; color: #222; }
+            .memo-type-badge { display: inline-block; font-size: 11.5px; font-weight: bold; padding: 2px 10px; border: 1px solid #000; border-radius: 3px; }
+            
+            /* CUSTOMER DETAILS */
+            .customer-strip { display: flex; justify-content: space-between; border-bottom: 1px solid #111; padding: 6px 2px; margin-bottom: 10px; font-size: 12px; }
+            
+            /* TABLE */
             table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
             th { border: 1px solid #111; padding: 6px 4px; background-color: #f7f3ea; font-weight: bold; text-align: center; }
             .footer-words-box { margin-top: 10px; padding: 6px 8px; font-size: 11.5px; font-weight: bold; border-bottom: 1px dashed #777; }
+            
+            /* PAYMENT BREAKDOWN BOX IN PDF */
+            .payment-summary-box {
+              margin-top: 10px;
+              border: 1px solid #cbd5e1;
+              background-color: #f8fafc;
+              border-radius: 4px;
+              padding: 8px 12px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 11px;
+            }
+            .pay-stat { display: flex; flex-direction: column; }
+            .pay-title { font-size: 9.5px; color: #475569; font-weight: 600; }
+            .pay-val { font-size: 13px; font-weight: 900; margin-top: 2px; }
+
+            /* DUAL SIGNATURE BOX AT BOTTOM */
+            .signature-container {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+              margin-top: 40px;
+              padding: 0 15px 10px 15px;
+            }
+            .sig-block {
+              text-align: center;
+              width: 180px;
+            }
+            .sig-line {
+              border-top: 1.2px solid #222;
+              margin-bottom: 5px;
+            }
+            .sig-text {
+              font-size: 11.5px;
+              font-weight: bold;
+              color: #111;
+            }
           </style>
         </head>
         <body>
           <div class="memo-box">
-            <div class="top-meta-row">
-              <div><strong>GSTIN :</strong> 22FTUPS0621B1ZU<br/><strong>Pes. L.No :</strong> RYP/1315</div>
-              <div class="center-header">
-                <div class="memo-type-badge">${bill.paymentMode === 'upi' ? 'ऑनलाइन / UPI रसीद' : bill.paymentMode === 'cash' ? 'केश मेमो' : 'उधार पर्ची'}</div>
+            <div class="header-grid">
+              <div class="left-meta">
+                <strong>GSTIN :</strong> 22FTUPS0621B1ZU<br/>
+                <strong>Pes. L.No :</strong> RYP/1315
+              </div>
+              <div class="center-shop">
                 <div class="shop-title">जीवन कृषि केन्द्र</div>
-                <div>ग्राम - देवरी, जिला - धमतरी (छ.ग.) | 70891-01502</div>
+                <div class="shop-sub">ग्राम - देवरी, जिला - धमतरी (छ.ग.) | मो. 70891-01502</div>
+              </div>
+              <div class="right-badge">
+                <div class="memo-type-badge">${isDue ? 'उधार पर्ची' : bill.paymentMode === 'upi' ? 'ऑनलाइन / UPI' : 'केश मेमो'}</div>
               </div>
             </div>
+
             <div class="customer-strip">
-              <div><strong>क्र. <span style="color: #b91c1c;">${bill.billNumber}</span></strong> &nbsp; <strong>नाम:</strong> ${bill.customerName}</div>
-              <div><strong>(गांव :</strong> ${bill.customerVillage || 'देवरी'}<strong>)</strong> &nbsp; <strong>दि. :</strong> ${bill.date}</div>
+              <div><strong>क्र. <span style="color: #b91c1c;">${bill.billNumber}</span></strong> &nbsp;&nbsp; <strong>नाम:</strong> ${bill.customerName}</div>
+              <div><strong>(गांव :</strong> ${bill.customerVillage || 'देवरी'}<strong>)</strong> &nbsp;&nbsp; <strong>दिनांक :</strong> ${bill.date}</div>
             </div>
+
             <table>
               <thead>
-                <tr><th>क्र.</th><th>विवरण</th><th>बेच</th><th>अवधि</th><th>भरती</th><th>मात्रा</th><th>दर</th><th>रकम</th></tr>
+                <tr>
+                  <th style="width: 30px;">क्र.</th>
+                  <th>विवरण</th>
+                  <th style="width: 70px;">बेच</th>
+                  <th style="width: 55px;">अवधि</th>
+                  <th style="width: 60px;">भरती</th>
+                  <th style="width: 45px;">मात्रा</th>
+                  <th style="width: 65px;">दर</th>
+                  <th style="width: 75px;">रकम</th>
+                </tr>
               </thead>
               <tbody>
                 ${rowsHtml}
@@ -978,8 +1051,52 @@ export default function App() {
                 </tr>
               </tbody>
             </table>
+
             <div class="footer-words-box">अक्षरों में : ${amountInWords} रुपये मात्र</div>
-            ${bill.lastPaymentDate ? `<div style="font-size: 10px; color: #555; margin-top: 6px;">अंतिम भुगतान दिनांक: ${bill.lastPaymentDate} (${bill.paymentMode === 'upi' ? 'UPI' : 'नकद'})</div>` : ''}
+
+            <!-- PAYMENT BREAKDOWN (PAID AMOUNT & DUE) -->
+            <div class="payment-summary-box">
+              <div class="pay-stat">
+                <span class="pay-title">कुल बिल रकम</span>
+                <span class="pay-val" style="color: #0f172a;">₹ ${Number(bill.grandTotal).toLocaleString('en-IN')}</span>
+              </div>
+              <div class="pay-stat" style="text-align: center;">
+                <span class="pay-title">प्राप्त / जमा राशि</span>
+                <span class="pay-val" style="color: #16a34a;">₹ ${paidAmt.toLocaleString('en-IN')}</span>
+                <span style="font-size: 8.5px; color: #555; margin-top: 1px;">(${bill.paymentMode === 'upi' ? 'ऑनलाइन UPI' : bill.paymentMode === 'cash' ? 'नकद' : 'उधारी खाता'})</span>
+              </div>
+              <div class="pay-stat" style="text-align: right;">
+                <span class="pay-title" style="color: ${isDue ? '#b91c1c' : '#15803d'};">
+                  ${isDue ? 'शेष बाकी उधारी' : 'भुगतान स्थिति'}
+                </span>
+                <span class="pay-val" style="color: ${isDue ? '#dc2626' : '#16a34a'};">
+                  ${isDue ? `₹ ${balDue.toLocaleString('en-IN')}` : 'पूर्ण चुकता'}
+                </span>
+              </div>
+            </div>
+
+            ${paidAmt > 0 && bill.lastPaymentDate ? `
+              <div style="font-size: 10px; color: #0369a1; margin-top: 6px; padding: 2px 4px; font-weight: 600;">
+                💳 अंतिम भुगतान समय: ${bill.lastPaymentDate} (${bill.paymentMode === 'upi' ? 'UPI द्वारा' : 'नकद द्वारा'})
+              </div>
+            ` : isDue ? `
+              <div style="font-size: 10px; color: #b91c1c; margin-top: 6px; padding: 2px 4px; font-weight: 600;">
+                ⚠️ यह बिल पूर्णतः उधारी खाते पर दर्ज है।
+              </div>
+            ` : ''}
+
+            <!-- BOTTOM SIGNATURE SECTION -->
+            <div class="signature-container">
+              <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="sig-text">हस्ताक्षर क्रेता (किसान)</div>
+              </div>
+              <div class="sig-block">
+                <div class="sig-line"></div>
+                <div class="sig-text">हस्ताक्षर विक्रेता</div>
+                <div style="font-size: 9.5px; color: #555;">जीवन कृषि केन्द्र</div>
+              </div>
+            </div>
           </div>
         </body>
       </html>

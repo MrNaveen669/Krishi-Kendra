@@ -137,14 +137,67 @@ const HistoryScreen = React.memo(function HistoryScreen({
             </View>
           </View>
 
-          {/* AUDIT NOTE: Shows when the payment was settled */}
-          {item.lastPaymentDate ? (
-            <View style={{ marginTop: 6, paddingTop: 4, borderTopWidth: 1, borderColor: '#e2e8f0', flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontSize: 9.5, color: '#0369a1', fontWeight: '700' }}>
-                💳 अंतिम भुगतान समय: {item.lastPaymentDate}
+          {/* AUDIT NOTE: Only show when payment has actually been settled */}
+          {/* AUDIT NOTE: Jab payment jama ho tab amount, time aur mode teeno dikhega */}
+          {Number(item.paidAmount || 0) > 0 && item.lastPaymentDate ? (
+            <View
+              style={{
+                marginTop: 6,
+                paddingTop: 5,
+                borderTopWidth: 1,
+                borderColor: '#e2e8f0',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 10, color: '#15803d', fontWeight: '800' }}>
+                  💰 जमा राशि: ₹{Number(item.paidAmount).toLocaleString('en-IN')}
+                </Text>
+                <Text style={{ fontSize: 9, color: '#0369a1', fontWeight: '600', marginTop: 1 }}>
+                  🕒 भुगतान समय: {item.lastPaymentDate}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  backgroundColor: isUpi ? '#dbeafe' : '#dcfce7',
+                  paddingHorizontal: 7,
+                  paddingVertical: 3,
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: isUpi ? '#93c5fd' : '#86efac'
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 9.5,
+                    color: isUpi ? '#1d4ed8' : '#15803d',
+                    fontWeight: '800'
+                  }}
+                >
+                  {isUpi ? '📱 UPI द्वारा' : '💵 नकद द्वारा'}
+                </Text>
+              </View>
+            </View>
+          ) : isDue ? (
+            <View
+              style={{
+                marginTop: 6,
+                paddingTop: 4,
+                borderTopWidth: 1,
+                borderColor: '#fee2e2',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <Text style={{ fontSize: 9.5, color: '#dc2626', fontWeight: '700' }}>
+                ⚠️ पूर्ण राशि उधारी पर दर्ज है
               </Text>
-              <Text style={{ fontSize: 9.5, color: isUpi ? '#1d4ed8' : '#15803d', fontWeight: '700' }}>
-                [{isUpi ? 'ऑनलाइन / UPI' : 'नकद'}]
+              <Text style={{ fontSize: 9.5, color: '#b91c1c', fontWeight: '700' }}>
+                [उधार बाकी]
               </Text>
             </View>
           ) : null}

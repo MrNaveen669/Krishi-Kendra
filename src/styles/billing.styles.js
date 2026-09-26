@@ -19,7 +19,13 @@ const billingStyles = StyleSheet.create({
     borderRadius: 10
   },
   addNewProdTopBtnText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
-  historyBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: 'center', justifyContent: 'center' }
+  historyBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  
+  productSearchListContent: {
+    paddingVertical: 4,
+    paddingHorizontal: 2
+  }
+
 });
 
 export default billingStyles;
